@@ -1,0 +1,4 @@
+{
+  "entries": ["src/screens/sheet.tsx"],
+  "layers": { "platform": ["src/lib/**"], "primitives": ["src/atoms/**"] }
+}

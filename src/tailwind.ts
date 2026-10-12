@@ -57,7 +57,7 @@ const UNSUPPORTED_VARIANTS = new Set([
 
 const UNSUPPORTED_VARIANT_PREFIXES = ['peer-', 'has-', 'group-has-', '['];
 
-const splitVariants = (token: string) => {
+export const splitVariants = (token: string) => {
   const parts: string[] = [];
   let depth = 0;
   let current = '';

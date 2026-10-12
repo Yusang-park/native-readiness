@@ -1,4 +1,4 @@
-export type Impact = 'blocks-native' | 'needs-port' | 'island-risk';
+export type Impact = 'blocks-native' | 'needs-port' | 'island-risk' | 'drift-risk' | 'responsive';
 
 export type RuleId =
   | 'web-package'
@@ -12,7 +12,12 @@ export type RuleId =
   | 'tw-unsupported'
   | 'island-shared-state'
   | 'island-props'
-  | 'island-default-export';
+  | 'island-default-export'
+  | 'fork-outside-layer'
+  | 'fork-api-drift'
+  | 'fork-stale'
+  | 'js-breakpoint'
+  | 'hover-only';
 
 export type Finding = {
   rule: RuleId;
@@ -22,6 +27,7 @@ export type Finding = {
   column: number;
   message: string;
   inIsland: boolean;
+  related?: string;
 };
 
 export type FileStatus = 'native' | 'portable' | 'island' | 'blocked';
@@ -67,6 +73,21 @@ export type Summary = {
   island: number;
   blocked: number;
   islandRatio: number;
+  forks: number;
+  forksOutsideLayers: number;
+  sharedRatio: number;
+};
+
+export type Layers = {
+  platform?: string[];
+  primitives?: string[];
+};
+
+export type ForkPair = {
+  native: string;
+  web: string | null;
+  layer: keyof Layers | null;
+  rules: RuleId[];
 };
 
 export type Report = {
@@ -77,6 +98,7 @@ export type Report = {
   blocked: BlockedBoundary[];
   islands: IslandCandidate[];
   portable: PortableCandidate[];
+  forks: ForkPair[];
   findings: Finding[];
 };
 
@@ -88,6 +110,9 @@ export type AnalyzeOptions = {
   webOnlyPackages?: string[];
   nativeSafePackages?: string[];
   islandMaxImporters?: number;
+  layers?: Layers;
+  breakpointHooks?: string[];
+  lastChanged?: (file: string) => number | undefined;
   sharedStatePackages?: string[];
   ignore?: string[];
   changedFiles?: string[];

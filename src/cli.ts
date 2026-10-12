@@ -40,6 +40,15 @@ const changedFiles = (root: string) => [
   ...git(root, ['ls-files', '--others', '--exclude-standard']),
 ];
 
+const lastCommitTime = (root: string) => (file: string) => {
+  try {
+    const [time] = git(root, ['log', '-1', '--format=%ct', '--', file]);
+    return time === undefined ? undefined : Number(time);
+  } catch {
+    return undefined;
+  }
+};
+
 const isBaseline = (value: unknown): value is Baseline =>
   typeof value === 'object' && value !== null && Reflect.get(value, 'version') === 1 &&
   typeof Reflect.get(value, 'counts') === 'object';
@@ -75,8 +84,11 @@ const check = (argv: string[]) => {
   if (!entries || entries.length === 0) throw new Error('No entries. Pass --entry or set "entries" in the config file.');
   if (values.format !== 'md' && values.format !== 'json') throw new Error('--format must be md or json.');
 
-  const report = analyze({ ...config, root, entries });
-  const shown = values.changed ? analyze({ ...config, root, entries, changedFiles: changedFiles(root) }) : report;
+  const lastChanged = lastCommitTime(root);
+  const report = analyze({ ...config, root, entries, lastChanged });
+  const shown = values.changed
+    ? analyze({ ...config, root, entries, lastChanged, changedFiles: changedFiles(root) })
+    : report;
 
   if (values['write-baseline']) {
     fs.writeFileSync(path.resolve(values['write-baseline']), `${JSON.stringify(toBaseline(report), null, 2)}\n`);

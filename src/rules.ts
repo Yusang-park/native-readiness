@@ -67,4 +67,29 @@ export const RULES: Record<RuleId, RuleDoc> = {
     title: "A 'use dom' file has no default export",
     fix: "Expo mounts the default export of a 'use dom' file. Export the component as default.",
   },
+  'fork-outside-layer': {
+    impact: 'drift-risk',
+    title: 'A .native fork lives outside the platform and primitive layers',
+    fix: 'Forks above the primitive layer drift from the web page. Delete the fork and make the shared file native-ready by using design-system primitives, or move the platform-specific part into a primitive or platform module and keep this file shared.',
+  },
+  'fork-api-drift': {
+    impact: 'drift-risk',
+    title: 'The web and native versions expose different exports or props',
+    fix: 'Make both files export the same names with the same props. Prefer one props type in a shared types file imported by both versions.',
+  },
+  'fork-stale': {
+    impact: 'drift-risk',
+    title: 'The web version changed after its .native sibling',
+    fix: 'Apply the same change to the .native sibling, or confirm it does not need one, so both platforms behave the same.',
+  },
+  'js-breakpoint': {
+    impact: 'responsive',
+    title: 'Layout depends on a JavaScript width check',
+    fix: 'Use responsive Tailwind classes (sm:, md:, lg:), which NativeWind applies from the screen width on native too. If logic truly needs the width, read it from one viewport module in the platform layer.',
+  },
+  'hover-only': {
+    impact: 'responsive',
+    title: 'Something is only reachable by hovering',
+    fix: 'Touch screens have no hover. Show the content by default on small screens, or add an equivalent focus:/active: variant or onClick handler.',
+  },
 };

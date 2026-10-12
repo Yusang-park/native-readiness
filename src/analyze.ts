@@ -2,14 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { DEFAULT_NATIVE_SAFE_PACKAGES, DEFAULT_SHARED_STATE_PACKAGES, DEFAULT_WEB_ONLY_PACKAGES, isBareSpecifier, matchesAny, packageName } from './packages.js';
+import { matchesAnyGlob } from './glob.js';
 import { RULES } from './rules.js';
-import { scanFile, type FileScan } from './scan.js';
+import { scanFile, type ExportSignature, type FileScan } from './scan.js';
 import type {
   AnalyzeOptions,
   BlockedBoundary,
   FileInfo,
   FileStatus,
   Finding,
+  ForkPair,
+  Layers,
   IslandCandidate,
   PortableCandidate,
   Report,
@@ -19,12 +22,42 @@ import type {
 const STYLESHEET = /\.(css|scss|sass|less)$/;
 const SOURCE = /\.(tsx?|jsx?|mjs|cjs)$/;
 const COMPONENT = /\.(tsx|jsx)$/;
+const PLATFORM_FILE = /\.(ios|android|native)(\.[cm]?[jt]sx?)$/;
 
 type Node = {
   scan: FileScan;
   edges: string[];
   packages: string[];
   findings: Finding[];
+};
+
+const describeProps = (signature: ExportSignature) =>
+  signature.props ? `{ ${signature.props.join(', ')} }` : (signature.propsType ?? 'unknown props');
+
+const apiDifferences = (web: ExportSignature[], native: ExportSignature[]) => {
+  const differences: string[] = [];
+  const nativeByName = new Map(native.map((signature) => [signature.name, signature]));
+  const webNames = new Set(web.map((signature) => signature.name));
+  for (const signature of web) {
+    const counterpart = nativeByName.get(signature.name);
+    if (!counterpart) {
+      differences.push(`\`${signature.name}\` is exported on web but missing on native`);
+      continue;
+    }
+    const propsDiffer =
+      signature.props && counterpart.props
+        ? signature.props.join(',') !== counterpart.props.join(',')
+        : signature.propsType !== undefined &&
+          counterpart.propsType !== undefined &&
+          signature.propsType !== counterpart.propsType;
+    if (propsDiffer) {
+      differences.push(`\`${signature.name}\` props differ: web ${describeProps(signature)}, native ${describeProps(counterpart)}`);
+    }
+  }
+  for (const signature of native) {
+    if (!webNames.has(signature.name)) differences.push(`\`${signature.name}\` is exported on native but missing on web`);
+  }
+  return differences;
 };
 
 const toPosix = (value: string) => value.split(path.sep).join('/');
@@ -62,6 +95,9 @@ export const analyze = (options: AnalyzeOptions): Report => {
   const webOnly = [...DEFAULT_WEB_ONLY_PACKAGES, ...(options.webOnlyPackages ?? [])];
   const nativeSafe = [...DEFAULT_NATIVE_SAFE_PACKAGES, ...(options.nativeSafePackages ?? [])];
   const islandMaxImporters = options.islandMaxImporters ?? 3;
+  const layers: Layers = options.layers ?? {};
+  const layerOf = (file: string): keyof Layers | null =>
+    matchesAnyGlob(file, layers.platform ?? []) ? 'platform' : matchesAnyGlob(file, layers.primitives ?? []) ? 'primitives' : null;
   const sharedState = [...DEFAULT_SHARED_STATE_PACKAGES, ...(options.sharedStatePackages ?? [])];
   const compilerOptions = loadCompilerOptions(root, options.tsconfig, options.platformSuffixes ?? ['.ios', '.native', '']);
   const cache = ts.createModuleResolutionCache(root, (name) => name, compilerOptions);
@@ -83,7 +119,7 @@ export const analyze = (options: AnalyzeOptions): Report => {
   while (queue.length > 0) {
     const file = queue.shift();
     if (file === undefined || graph.has(file)) continue;
-    const scan = scanFile(file, fs.readFileSync(file, 'utf8'));
+    const scan = scanFile(file, fs.readFileSync(file, 'utf8'), { breakpointHooks: options.breakpointHooks });
     const node: Node = { scan, edges: [], packages: [], findings: [] };
     const rel = relative(file);
     const add = (rule: RuleId, at: { line: number; column: number }, message: string) =>
@@ -106,7 +142,10 @@ export const analyze = (options: AnalyzeOptions): Report => {
       if (!node.packages.includes(name)) node.packages.push(name);
       if (matchesAny(webOnly, ref.specifier) && !matchesAny(nativeSafe, ref.specifier)) add('web-package', ref, `Imports the web-only package \`${ref.specifier}\`.`);
     }
-    for (const finding of scan.findings) add(finding.rule, finding, finding.message);
+    for (const finding of scan.findings) {
+      if (finding.rule === 'js-breakpoint' && layerOf(rel) === 'platform') continue;
+      add(finding.rule, finding, finding.message);
+    }
     graph.set(file, node);
   }
 
@@ -251,6 +290,48 @@ export const analyze = (options: AnalyzeOptions): Report => {
     }))
     .sort((a, b) => b.reach - a.reach || b.importers - a.importers || a.findings - b.findings || a.file.localeCompare(b.file));
 
+  const changed = options.changedFiles ? new Set(options.changedFiles.map(toPosix)) : undefined;
+  const hasLayers = (layers.platform ?? []).length > 0 || (layers.primitives ?? []).length > 0;
+  const forkFindings: Finding[] = [];
+  const forks: ForkPair[] = [...graph.keys()]
+    .filter((file) => PLATFORM_FILE.test(file))
+    .map((file) => {
+      const native = relative(file);
+      const webFile = file.replace(PLATFORM_FILE, '$2');
+      const web = fs.existsSync(webFile) ? relative(webFile) : null;
+      const layer = layerOf(native);
+      const forkFinding = (rule: RuleId, message: string) =>
+        forkFindings.push({
+          rule,
+          impact: RULES[rule].impact,
+          file: native,
+          line: 1,
+          column: 1,
+          message,
+          inIsland: status.get(file) === 'island',
+          ...(web === null ? {} : { related: web }),
+        });
+      if (hasLayers && layer === null) {
+        forkFinding('fork-outside-layer', `\`${native}\` forks a file outside the platform and primitive layers.`);
+      }
+      if (web !== null) {
+        const webScan = scanFile(webFile, fs.readFileSync(webFile, 'utf8'));
+        const differences = apiDifferences(webScan.exports, graph.get(file)?.scan.exports ?? []);
+        if (differences.length > 0) forkFinding('fork-api-drift', `${differences.join('; ')}.`);
+        const webTime = options.lastChanged?.(web);
+        const nativeTime = options.lastChanged?.(native);
+        const changedOnlyOnWeb = changed !== undefined && changed.has(web) && !changed.has(native);
+        const committedLater = webTime !== undefined && nativeTime !== undefined && webTime > nativeTime;
+        if (changedOnlyOnWeb || committedLater) {
+          forkFinding('fork-stale', `\`${web}\` changed after \`${native}\`; check whether the native version needs the same change.`);
+        }
+      }
+      return { native, web, layer, rules: [] };
+    });
+  for (const fork of forks) {
+    fork.rules = [...new Set(forkFindings.filter((finding) => finding.file === fork.native).map((finding) => finding.rule))];
+  }
+
   const files: Record<string, FileInfo> = {};
   for (const [file, node] of graph) {
     files[relative(file)] = {
@@ -262,9 +343,13 @@ export const analyze = (options: AnalyzeOptions): Report => {
     };
   }
 
-  const changed = options.changedFiles ? new Set(options.changedFiles.map(toPosix)) : undefined;
-  const findings = [...[...graph.values()].flatMap((node) => node.findings), ...islandFindings]
-    .filter((finding) => changed === undefined || changed.has(finding.file))
+  const findings = [...[...graph.values()].flatMap((node) => node.findings), ...islandFindings, ...forkFindings]
+    .filter(
+      (finding) =>
+        changed === undefined ||
+        changed.has(finding.file) ||
+        (finding.related !== undefined && changed.has(finding.related)),
+    )
     .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
 
   const count = (value: FileStatus) => [...status.values()].filter((s) => s === value).length;
@@ -278,11 +363,15 @@ export const analyze = (options: AnalyzeOptions): Report => {
       island: count('island'),
       blocked: count('blocked'),
       islandRatio: graph.size === 0 ? 0 : Math.round((count('island') / graph.size) * 100) / 100,
+      forks: forks.length,
+      forksOutsideLayers: hasLayers ? forks.filter((fork) => fork.layer === null).length : 0,
+      sharedRatio: graph.size === 0 ? 1 : Math.round((1 - forks.length / graph.size) * 100) / 100,
     },
     files,
     blocked,
     islands,
     portable,
+    forks,
     findings,
   };
 };

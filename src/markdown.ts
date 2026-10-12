@@ -15,18 +15,25 @@ export const renderMarkdown = (report: Report, options: { maxPortable?: number; 
     '',
     `Entries: ${list(report.entries)}`,
     '',
-    '| Files | Native | Portable | Island | Blocked | Island ratio |',
-    '|---|---|---|---|---|---|',
-    `| ${summary.files} | ${summary.native} | ${summary.portable} | ${summary.island} | ${summary.blocked} | ${Math.round(summary.islandRatio * 100)}% |`,
+    '| Files | Shared (not forked) | Forks | Native | Portable | Island | Blocked |',
+    '|---|---|---|---|---|---|---|',
+    `| ${summary.files} | ${Math.round(summary.sharedRatio * 100)}% | ${summary.forks} | ${summary.native} | ${summary.portable} | ${summary.island} | ${summary.blocked} |`,
     '',
     '- **Native**: runs on React Native as is.',
     '- **Portable**: only needs mechanical porting (DOM tags, unsupported Tailwind classes).',
     "- **Island**: runs inside a `'use dom'` component.",
     "- **Blocked**: breaks the native build. Fix first, usually by adding a `'use dom'` boundary.",
     '',
-    '## Blocked — add a boundary first',
+    '## Fork drift',
     '',
   ];
+
+  const drift = report.findings.filter((finding) => finding.impact === 'drift-risk');
+  if (report.forks.length === 0) lines.push('No `.native` forks.', '');
+  else if (drift.length === 0) lines.push(`${report.forks.length} forks, none drifting.`, '');
+  else lines.push(...drift.map(findingLine), '');
+
+  lines.push('## Blocked — add a boundary first', '');
 
   if (report.blocked.length === 0) lines.push('Nothing is blocked.', '');
   for (const boundary of report.blocked) {
@@ -66,7 +73,11 @@ export const renderMarkdown = (report: Report, options: { maxPortable?: number; 
 
   lines.push('## Findings', '');
   const islandRisks = report.findings.filter((finding) => finding.impact === 'island-risk');
-  const nativeSide = report.findings.filter((finding) => !finding.inIsland && finding.impact !== 'island-risk');
+  const responsive = report.findings.filter((finding) => finding.impact === 'responsive');
+  const nativeSide = report.findings.filter(
+    (finding) => !finding.inIsland && (finding.impact === 'blocks-native' || finding.impact === 'needs-port'),
+  );
+  if (responsive.length > 0) lines.push('### Responsive', '', ...responsive.slice(0, maxFindings).map(findingLine), '');
   if (islandRisks.length > 0) lines.push('### Island risks', '', ...islandRisks.map(findingLine), '');
   if (nativeSide.length > 0) {
     lines.push('### Native side', '', ...nativeSide.slice(0, maxFindings).map(findingLine));

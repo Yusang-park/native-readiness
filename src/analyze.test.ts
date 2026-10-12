@@ -8,6 +8,7 @@ import type { Report } from './types.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '../test/fixtures/app');
 const entries = ['src/screens/sheet.tsx', 'src/screens/dashboard.tsx'];
+const layers = { platform: ['src/lib/**'], primitives: ['src/atoms/**'] };
 
 const findingsFor = (report: Report, file: string, rule?: string) =>
   report.findings.filter((f) => f.file === file && (rule === undefined || f.rule === rule));
@@ -16,7 +17,7 @@ describe('analyze', () => {
   let report: Report;
 
   beforeAll(() => {
-    report = analyze({ root, entries });
+    report = analyze({ root, entries, layers });
   });
 
   it('resolves a .native.tsx sibling instead of the web file', () => {
@@ -65,6 +66,7 @@ describe('analyze', () => {
       'src/screens/sheet.tsx': 'native',
       'src/screens/dashboard.tsx': 'native',
       'src/atoms/button.native.tsx': 'native',
+      'src/components/footer.native.tsx': 'native',
       'src/lib/cn.ts': 'native',
       'src/components/header.tsx': 'portable',
       'src/components/chart.tsx': 'blocked',
@@ -75,7 +77,7 @@ describe('analyze', () => {
       'src/stores/sheet-store.ts': 'island',
       'src/components/dom-map.tsx': 'island',
     });
-    expect(report.summary).toMatchObject({ files: 12, native: 4, portable: 1, blocked: 4, island: 3 });
+    expect(report.summary).toMatchObject({ files: 13, native: 5, portable: 1, blocked: 4, island: 3 });
   });
 
   it('suggests one use dom boundary at the highest blocked component and covers its subtree', () => {
@@ -139,9 +141,130 @@ describe('analyze', () => {
   });
 
   it('limits findings to changed files without changing the classification', () => {
-    const changed = analyze({ root, entries, changedFiles: ['src/components/header.tsx'] });
+    const changed = analyze({ root, entries, layers, changedFiles: ['src/components/header.tsx'] });
     expect(new Set(changed.findings.map((f) => f.file))).toEqual(new Set(['src/components/header.tsx']));
     expect(changed.summary).toEqual(report.summary);
+  });
+});
+
+describe('fork maintainability', () => {
+  let report: Report;
+
+  beforeAll(() => {
+    report = analyze({ root, entries, layers });
+  });
+
+  it('flags a .native fork outside the platform and primitive layers', () => {
+    expect(findingsFor(report, 'src/components/footer.native.tsx', 'fork-outside-layer')[0]).toMatchObject({
+      impact: 'drift-risk',
+    });
+  });
+
+  it('allows .native forks inside a configured layer', () => {
+    expect(findingsFor(report, 'src/atoms/button.native.tsx', 'fork-outside-layer')).toEqual([]);
+  });
+
+  it('reports props that differ between the web and native versions', () => {
+    const message = findingsFor(report, 'src/atoms/button.native.tsx', 'fork-api-drift')
+      .map((f) => f.message)
+      .join(' ');
+    expect(message).toContain('label');
+    expect(message).toContain('title');
+  });
+
+  it('reports exports missing from the native version', () => {
+    expect(findingsFor(report, 'src/components/footer.native.tsx', 'fork-api-drift')[0]?.message).toContain(
+      'FooterLink',
+    );
+  });
+
+  it('reports a stale fork when only the web file changed', () => {
+    const changed = analyze({ root, entries, layers, changedFiles: ['src/atoms/button.tsx'] });
+    expect(findingsFor(changed, 'src/atoms/button.native.tsx', 'fork-stale')).toHaveLength(1);
+  });
+
+  it('keeps stale-fork findings visible in --changed mode even though the native file did not change', () => {
+    const changed = analyze({ root, entries, layers, changedFiles: ['src/atoms/button.tsx'] });
+    expect(changed.findings.some((f) => f.rule === 'fork-stale')).toBe(true);
+  });
+
+  it('does not report a stale fork when both versions changed', () => {
+    const changed = analyze({
+      root,
+      entries,
+      layers,
+      changedFiles: ['src/atoms/button.tsx', 'src/atoms/button.native.tsx'],
+    });
+    expect(findingsFor(changed, 'src/atoms/button.native.tsx', 'fork-stale')).toEqual([]);
+  });
+
+  it('reports a stale fork when the web file was committed after the native one', () => {
+    const timed = analyze({
+      root,
+      entries,
+      layers,
+      lastChanged: (file) => (file === 'src/components/footer.tsx' ? 200 : 100),
+    });
+    expect(findingsFor(timed, 'src/components/footer.native.tsx', 'fork-stale')).toHaveLength(1);
+    expect(findingsFor(timed, 'src/atoms/button.native.tsx', 'fork-stale')).toEqual([]);
+  });
+
+  it('counts forks and the share of UI that is not forked', () => {
+    expect(report.summary).toMatchObject({ forks: 2, forksOutsideLayers: 1, sharedRatio: 0.85 });
+  });
+});
+
+describe('responsive discipline', () => {
+  let report: Report;
+
+  beforeAll(() => {
+    report = analyze({ root, entries, layers });
+  });
+
+  it('flags layout decided by JS width checks', () => {
+    expect(findingsFor(report, 'src/components/chart-tooltip.tsx', 'js-breakpoint')[0]).toMatchObject({
+      impact: 'responsive',
+    });
+    expect(findingsFor(report, 'src/screens/dashboard.tsx', 'js-breakpoint')[0]?.message).toContain('useMediaQuery');
+  });
+
+  it('allows JS width checks inside the platform layer', () => {
+    const relaxed = analyze({ root, entries, layers: { ...layers, platform: ['src/components/chart-tooltip.tsx'] } });
+    expect(findingsFor(relaxed, 'src/components/chart-tooltip.tsx', 'js-breakpoint')).toEqual([]);
+  });
+
+  it('flags content revealed only on hover', () => {
+    const message = findingsFor(report, 'src/components/header.tsx', 'hover-only')
+      .map((f) => f.message)
+      .join(' ');
+    expect(message).toContain('group-hover:opacity-100');
+  });
+
+  it('does not flag hover styles on content that is already visible', () => {
+    const message = findingsFor(report, 'src/components/header.tsx', 'hover-only')
+      .map((f) => f.message)
+      .join(' ');
+    expect(message).not.toContain('opacity-80');
+    expect(message).not.toContain('[@media(hover:hover)]');
+  });
+
+  it('does not flag hover reveals that also have a focus variant', () => {
+    const message = findingsFor(report, 'src/components/header.tsx', 'hover-only')
+      .map((f) => f.message)
+      .join(' ');
+    expect(message).not.toContain('group-hover:visible');
+  });
+
+  it('flags mouse handlers without a press equivalent, once per element', () => {
+    const handlers = findingsFor(report, 'src/components/header.tsx', 'hover-only').filter((f) =>
+      f.message.includes('onMouseEnter'),
+    );
+    expect(handlers).toHaveLength(1);
+    expect(handlers[0]?.line).toBe(11);
+  });
+
+  it('does not change file status', () => {
+    expect(report.files['src/screens/dashboard.tsx']?.status).toBe('native');
   });
 });
 
@@ -159,7 +282,9 @@ describe('baseline', () => {
 
 describe('renderMarkdown', () => {
   it('puts blocked boundaries before island migration candidates', () => {
-    const markdown = renderMarkdown(analyze({ root, entries }));
+    const markdown = renderMarkdown(analyze({ root, entries, layers }));
+    expect(markdown.indexOf('## Fork drift')).toBeGreaterThan(-1);
+    expect(markdown.indexOf('## Fork drift')).toBeLessThan(markdown.indexOf('## Blocked'));
     expect(markdown.indexOf('## Blocked')).toBeGreaterThan(-1);
     expect(markdown.indexOf('## Blocked')).toBeLessThan(markdown.indexOf('## Island migration candidates'));
     expect(markdown).toContain('src/components/chart.tsx');
