@@ -1,0 +1,27 @@
+{
+  "name": "native-readiness",
+  "version": "0.1.0",
+  "description": "Report-only native readiness checker for React web codebases moving to React Native via 'use dom' islands and .native.tsx files.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "native-readiness": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "RULES.md", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["react-native", "expo", "use dom", "migration", "lint", "ai-agents"],
+  "dependencies": {
+    "typescript": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^3.2.0"
+  }
+}
