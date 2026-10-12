@@ -77,6 +77,63 @@ The command exits 0 unless `--fail-on-regression` is set and new findings appear
 }
 ```
 
+## Running a Vite app inside `'use dom'` islands
+
+The fastest way to the first native release is to render existing web screens in Expo DOM components and migrate them one by one. Metro is not Vite, so the package ships a compatibility layer.
+
+`metro.config.js` in the native app (inside the web repo, e.g. `native/`):
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const { withViteCompat } = require('native-readiness/metro');
+
+module.exports = withViteCompat(getDefaultConfig(__dirname), {
+  root: '..',                                   // the Vite project root
+  ignore: ['build', 'e2e'],                     // root folders Metro should never crawl
+  staticDirs: { '/': 'public' },                // files the app fetches from its own origin
+  vitePlugins: [],                              // Vite plugins whose dev middleware generates files
+  aliases: {},                                  // module replacements for the island bundle
+  svgrOptions: { icon: true },                  // match vite-plugin-svgr
+  pregenerateInclude: ['src'],                  // folders holding ?react SVGs and ?raw imports
+});
+```
+
+`babel.config.js`:
+
+```js
+const path = require('node:path');
+const viteCompat = require('native-readiness/babel').default;
+
+module.exports = (api) => {
+  api.cache(true);
+  return {
+    presets: [['babel-preset-expo', { unstable_transformImportMeta: true }]],
+    plugins: [[viteCompat, { root: path.resolve(__dirname, '..') }]],
+  };
+};
+```
+
+What it covers:
+
+| Vite feature | How it works on Metro |
+|---|---|
+| `import.meta.env` | Inlined from `.env`, `.env.local`, `.env.[mode]`, `.env.[mode].local` (`VITE_` only), plus `MODE`, `DEV`, `PROD` |
+| `import.meta.glob` | Expanded at build time (eager, lazy, `import`, `query`) |
+| tsconfig `paths` | Resolved from the web root's tsconfig; type-only (`.d.ts`) mappings are skipped like Vite does |
+| `/src/...` root-absolute imports | Resolved against the web root |
+| `?react` SVG imports | Compiled with SVGR when Metro starts; editor-only namespaces (Inkscape, Sodipodi) are stripped |
+| `?raw` / `?url` | String modules / plain asset paths |
+| `import()` chunks | Bundled eagerly in web (DOM) bundles, so islands never fetch chunks outside the app |
+| `public/` and dev-generated files | `staticDirs` and `vitePlugins` serve them from Metro, same origin as the island |
+| One React | `react`, `react-dom`, `react-native`, `react-native-web`, `scheduler` always resolve from the native app |
+| `tslib` | Redirected to its ES build, whose default entry Metro cannot interop |
+
+Island tips learned the hard way:
+
+- Expo's DOM root is a row flexbox. Wrap the web app in an element with `flex: 1 1 0%; min-width: 0`, or container-query layouts collapse to zero width.
+- Each island is its own WebView with its own JavaScript state; `localStorage` is shared, so sessions carry across islands.
+- If the web app hardcodes `BrowserRouter`, alias `react-router-dom` to a module whose router blocks paths owned by other native screens (`history.block` returning `false`) and hands them to the native stack.
+
 ## Rules
 
 | Rule | Impact | What it catches |

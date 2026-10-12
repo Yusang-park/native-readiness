@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "shared": [
+        "./shared/index.ts"
+      ],
+      "typed-only": [
+        "./types/typed-only.d.ts"
+      ]
+    }
+  }
+}
