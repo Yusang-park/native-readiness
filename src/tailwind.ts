@@ -29,31 +29,14 @@ const UNSUPPORTED_UTILITY_PREFIXES = [
   'float-',
   'clear-',
   'columns-',
-  'cursor-',
   'backdrop-',
   'snap-',
-  'select-',
-  'resize',
   'table-',
 ];
 
-const UNSUPPORTED_VARIANTS = new Set([
-  'hover',
-  'group-hover',
-  'focus-visible',
-  'focus-within',
-  'before',
-  'after',
-  'selection',
-  'marker',
-  'first-letter',
-  'first-line',
-  'file',
-  'print',
-  'visited',
-  'target',
-  'open',
-]);
+// Interaction-only variants and utilities (hover:, cursor-*, select-*) are harmless no-ops on
+// touch devices, so they are not reported. Only classes that change layout or content are.
+const UNSUPPORTED_VARIANTS = new Set(['before', 'after', 'marker', 'first-letter', 'first-line', 'file', 'open']);
 
 const UNSUPPORTED_VARIANT_PREFIXES = ['peer-', 'has-', 'group-has-', '['];
 

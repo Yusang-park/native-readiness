@@ -89,7 +89,7 @@ The command exits 0 unless `--fail-on-regression` is set and new findings appear
 | `web-only-element` | blocks-native | `<iframe>`, `<canvas>`, `<video>`, `<audio>`, `<object>`, `<embed>` |
 | `content-editable` | blocks-native | `contentEditable` |
 | `dom-element` | needs-port | Intrinsic DOM tags |
-| `tw-unsupported` | needs-port | `grid`, `hover:`, `before:`, `cursor-*`, `sticky`, `fixed`, arbitrary variants, … |
+| `tw-unsupported` | needs-port | Classes that change layout or content: `grid`, `before:`, `sticky`, `fixed`, arbitrary variants, … (`hover:` and `cursor-*` are harmless no-ops on native and are not reported) |
 | `island-shared-state` | island-risk | An island reads app state that the native side will not share |
 | `island-props` | island-risk | Function props (become async) or React node/ref props (cannot cross) |
 | `island-default-export` | island-risk | A `'use dom'` file without a default export |

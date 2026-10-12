@@ -49,8 +49,8 @@ export const RULES: Record<RuleId, RuleDoc> = {
   },
   'tw-unsupported': {
     impact: 'needs-port',
-    title: 'Uses Tailwind classes NativeWind cannot express',
-    fix: 'Rewrite with flexbox utilities (flex-row, flex-wrap, basis-1/2) and pressed:/active: states instead of grid, hover:, pseudo-elements, cursor, and sticky/fixed positioning.',
+    title: 'Uses Tailwind classes that change layout or content and that NativeWind cannot express',
+    fix: 'Rewrite with flexbox utilities (flex-row, flex-wrap, basis-1/2) instead of grid, pseudo-elements, and sticky/fixed positioning. Interaction-only classes such as hover: and cursor-* are harmless no-ops on native and are not reported.',
   },
   'island-shared-state': {
     impact: 'island-risk',

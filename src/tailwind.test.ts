@@ -10,12 +10,16 @@ describe('unsupportedTailwindTokens', () => {
     expect(unsupportedTailwindTokens('grid grid-cols-3 col-span-2 gap-2')).toEqual(['grid', 'grid-cols-3', 'col-span-2']);
   });
 
-  it('flags hover, pseudo-element, and peer variants', () => {
-    expect(unsupportedTailwindTokens('hover:bg-red before:content-[""] peer-checked:block')).toHaveLength(3);
+  it('ignores hover and other interaction variants that are harmless no-ops on native', () => {
+    expect(unsupportedTailwindTokens('hover:bg-red group-hover:underline focus-visible:ring md:hover:underline')).toEqual([]);
   });
 
-  it('flags unsupported variants nested behind responsive ones', () => {
-    expect(unsupportedTailwindTokens('md:hover:underline')).toEqual(['md:hover:underline']);
+  it('ignores cursor and text-selection utilities that are harmless no-ops on native', () => {
+    expect(unsupportedTailwindTokens('cursor-pointer select-none print:hidden visited:text-red')).toEqual([]);
+  });
+
+  it('flags pseudo-element and peer variants, which change content or layout', () => {
+    expect(unsupportedTailwindTokens('before:content-[""] after:block peer-checked:block')).toHaveLength(3);
   });
 
   it('flags arbitrary variants', () => {
@@ -30,7 +34,7 @@ describe('unsupportedTailwindTokens', () => {
     expect(unsupportedTailwindTokens('!sticky -mt-2')).toEqual(['!sticky']);
   });
 
-  it('flags cursor and positioning utilities', () => {
-    expect(unsupportedTailwindTokens('cursor-pointer fixed absolute')).toEqual(['cursor-pointer', 'fixed']);
+  it('flags fixed positioning but not absolute', () => {
+    expect(unsupportedTailwindTokens('fixed absolute')).toEqual(['fixed']);
   });
 });

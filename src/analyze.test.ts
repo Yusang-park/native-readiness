@@ -41,7 +41,7 @@ describe('analyze', () => {
       .map((f) => f.message)
       .join(' ');
     expect(messages).toContain('grid-cols-2');
-    expect(messages).toContain('group-hover:underline');
+    expect(messages).not.toContain('group-hover:underline');
     expect(messages).not.toContain('md:flex');
   });
 
