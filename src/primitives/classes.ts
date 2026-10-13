@@ -153,6 +153,20 @@ export const resolveDisabled = (className: string, disabled: boolean) =>
     })
     .join(' ');
 
+/**
+ * Takes pointer-events-none off a pressable's classes so the primitive can set `pointerEvents`
+ * itself, to 'none' or explicitly back to 'auto'. NativeWind keeps a removed pointer-events style
+ * on elements with a transition, so a button that starts disabled (as web buttons often do)
+ * would never accept a press again.
+ */
+export const pointerBlocking = (className: string) => {
+  const tokens = className.split(/\s+/).filter(Boolean);
+  return {
+    className: tokens.filter((token) => token !== 'pointer-events-none').join(' '),
+    blocked: tokens.includes('pointer-events-none'),
+  };
+};
+
 const PRESS_VARIANTS = new Set(['hover', 'active']);
 
 /**

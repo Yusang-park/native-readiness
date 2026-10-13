@@ -45,6 +45,7 @@ import {
   gridLayout,
   mergeTextClasses,
   nativeClassName,
+  pointerBlocking,
   pressStates,
   scrollDirection,
   splitTextClasses,
@@ -152,8 +153,8 @@ const nativeRef = <T,>(ref: unknown) => ref as Ref<T> | undefined;
  * Bare strings cannot sit inside a View. Runs of inline content become one Text so that
  * "Hello <b>you</b>" stays on one line; other children are left as they are.
  */
-const isTextLike = (child: ReactNode) =>
-  typeof child === "string" || typeof child === "number";
+// Empty strings render nothing in React (as in `value && <X />`), so they are not text.
+const isTextLike = (child: ReactNode) => (typeof child === 'string' && child !== '') || typeof child === 'number';
 
 const renderChildren = (children: ReactNode, textClass: string) => {
   // Children.toArray is only used to inspect; the original children are rendered so React's
@@ -206,7 +207,10 @@ const usePressClasses = (box: string, text: string) => {
 const Box = (props: WebProps) => {
   const { className: rawClassName, children, onClick, hidden, ref } = props;
 
-  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const resolved = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const pointer = pointerBlocking(resolved);
+  // Only pressables trade pointer-events-none for `disabled`; overlays keep it.
+  const className = onClick ? pointer.className : resolved;
   const inherited = useInheritedTextClasses();
   const { box, text } = splitTextClasses(className);
   const merged = mergeTextClasses(inherited, text);
@@ -254,6 +258,11 @@ const Box = (props: WebProps) => {
       <ScrollView
         ref={nativeRef<ScrollView>(ref)}
         horizontal={scroll === "horizontal"}
+        // On the web a tap lands even while an input has focus. React Native's
+        // default spends the first tap closing the keyboard, so a submit button
+        // under a focused field would need two taps.
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         className={outer}
         contentContainerClassName={layout}
         {...shared}
@@ -267,6 +276,7 @@ const Box = (props: WebProps) => {
         ref={nativeRef<View>(ref)}
         className={press.box}
         onPress={() => onClick(webEvent())}
+        pointerEvents={pointer.blocked ? 'none' : 'auto'}
         {...press.handlers}
         accessible={interactive}
         {...(interactive ? { accessibilityRole: props.role === 'link' ? ('link' as const) : ('button' as const) } : {})}
@@ -290,7 +300,10 @@ const Box = (props: WebProps) => {
 const Span = markInline((props: WebProps) => {
   const { className: rawClassName, children, onClick, hidden, ref } = props;
 
-  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const resolved = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const pointer = pointerBlocking(resolved);
+  // Only pressables trade pointer-events-none for `disabled`; overlays keep it.
+  const className = onClick ? pointer.className : resolved;
   const inherited = useInheritedTextClasses();
   const merged = mergeTextClasses(inherited, className);
   const press = usePressClasses('', merged);
@@ -352,7 +365,8 @@ const Button = (props: WebProps) => {
     ref,
   } = props;
 
-  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const pointer = pointerBlocking(resolveDisabled(nativeClassName(rawClassName), isDisabled(props)));
+  const className = pointer.className;
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
   const { box, text } = splitTextClasses(className);
@@ -373,6 +387,7 @@ const Button = (props: WebProps) => {
         className={pressClasses.box}
         disabled={disabled === true}
         onPress={press}
+        pointerEvents={pointer.blocked ? 'none' : 'auto'}
         {...pressClasses.handlers}
         accessibilityRole="button"
         accessibilityState={{ disabled: disabled === true }}

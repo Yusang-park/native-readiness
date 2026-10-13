@@ -83,6 +83,23 @@ describe('primitives', () => {
     expect(mounts).toHaveBeenCalledTimes(1);
   });
 
+  it('treats empty strings like React does, so `value && <X />` patterns do not remount siblings', () => {
+    const mounts = vi.fn();
+    const Child = () => {
+      useEffect(() => mounts(), []);
+      return null;
+    };
+    const Field = ({ value }: { value: string }) => (
+      <H.div>
+        <Child />
+        {value && <H.button>clear</H.button>}
+      </H.div>
+    );
+    const { rerender } = render(<Field value="" />);
+    rerender(<Field value="h" />);
+    expect(mounts).toHaveBeenCalledTimes(1);
+  });
+
   it('submits the enclosing form from a submit button', () => {
     const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
     render(
