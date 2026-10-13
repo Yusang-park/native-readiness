@@ -76,6 +76,10 @@
     "./jsx-dev-runtime": {
       "types": "./dist/jsx-dev-runtime.d.ts",
       "default": "./dist/jsx-dev-runtime.js"
+    },
+    "./fonts": {
+      "types": "./dist/fonts/fonts.d.ts",
+      "default": "./dist/fonts/fonts.js"
     }
   },
   "peerDependencies": {

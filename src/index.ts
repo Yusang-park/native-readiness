@@ -11,3 +11,4 @@ export { loadViteEnv } from './vite/env.js';
 export { resolveViteSpecifier } from './vite/resolve.js';
 export { viteDevMiddleware, type VitePluginLike, type ViteDevServerShim } from './vite/plugins.js';
 export { serveStaticDirs } from './static.js';
+export * from './fonts/fonts.js';

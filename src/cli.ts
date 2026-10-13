@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { analyze } from './analyze.js';
+import { findGoogleFontSpecs, syncFonts } from './fonts/fonts.js';
 import { compareBaseline, toBaseline, type Baseline } from './baseline.js';
 import { loadConfig } from './config.js';
 import { renderMarkdown } from './markdown.js';
@@ -15,6 +16,7 @@ const HELP = `native-readiness — report how ready a React web codebase is for 
 Usage:
   native-readiness check [options]
   native-readiness explain [rule]
+  native-readiness fonts --out <dir> [--css <file>] [--root <dir>] [--include <path>]...
 
 Check options:
   --root <dir>            Project root (default: current directory)
@@ -26,6 +28,12 @@ Check options:
   --baseline <file>       Compare with a saved baseline
   --write-baseline <file> Save the current findings as a baseline
   --fail-on-regression    Exit 1 when --baseline finds new findings
+
+Fonts:
+  Finds the Google Fonts the web app loads (index.html and source), downloads every
+  weight as TrueType into --out with a fonts.json manifest, and writes --css with embedded
+  @font-face rules for DOM islands. Use expoFontPluginEntry() from 'native-readiness/fonts'
+  in app.config.js to embed the files in native builds.
 
 The checker only reports. It never edits files and exits 0 unless
 --fail-on-regression is set and readiness got worse.`;
@@ -125,10 +133,37 @@ const check = (argv: string[]) => {
   if (values['fail-on-regression'] && diff && diff.regressions.length > 0) process.exitCode = 1;
 };
 
+const fonts = async (argv: string[]) => {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      root: { type: 'string' },
+      out: { type: 'string' },
+      css: { type: 'string' },
+      include: { type: 'string', multiple: true },
+    },
+  });
+  if (!values.out) throw new Error('--out is required.');
+  const root = path.resolve(values.root ?? process.cwd());
+  const specs = findGoogleFontSpecs(root, values.include);
+  if (specs.length === 0) {
+    console.log('No Google Fonts found.');
+    return;
+  }
+  const manifest = await syncFonts({
+    specs,
+    outDir: path.resolve(values.out),
+    ...(values.css ? { cssFile: path.resolve(values.css) } : {}),
+  });
+  for (const spec of specs) console.log(`${spec.family}: ${spec.variants.map((v) => `${v.weight}${v.style === 'italic' ? 'i' : ''}`).join(', ')}`);
+  console.log(`${manifest.length} font files in ${values.out}`);
+};
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   if (command === 'check') check(rest);
   else if (command === 'explain') explain(rest[0]);
+  else if (command === 'fonts') await fonts(rest);
   else console.log(HELP);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
