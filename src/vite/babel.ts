@@ -9,8 +9,10 @@ export type ViteCompatBabelOptions = {
   mode?: string;
   envPrefixes?: string[];
   /**
-   * Turn `import()` into in-bundle `require()` on web, so DOM islands never fetch lazy chunks
-   * that live outside the native app. Defaults to true.
+   * Turn `import()` into in-bundle `require()`. On web, DOM islands then never fetch lazy chunks
+   * that live outside the native app; on native, Metro's dev lazy bundles resolve paths against
+   * the app folder rather than the web root, and release builds do not split anyway.
+   * Defaults to true.
    */
   eagerImports?: boolean;
 };
@@ -73,8 +75,7 @@ export default function viteCompatBabel(api: PluginAPI, rawOptions: object): Plu
   const env = envCache.get(cacheKey) ?? loadViteEnv(root, mode, options.envPrefixes);
   envCache.set(cacheKey, env);
   let globCount = 0;
-  const platform = api.caller((caller) => (caller ? Reflect.get(caller, 'platform') : undefined));
-  const eagerImports = options.eagerImports !== false && platform === 'web';
+  const eagerImports = options.eagerImports !== false;
   const eagerImport = api.template.expression(
     'Promise.resolve().then(() => (m => m && m.__esModule ? m : Object.assign({ default: m }, m))(require(SOURCE)))',
   );

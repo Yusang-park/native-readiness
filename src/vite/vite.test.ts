@@ -75,8 +75,13 @@ describe('vite compat babel plugin', () => {
   });
 
   it('expands lazy import.meta.glob into dynamic imports', () => {
-    const code = transform("const pages = import.meta.glob('./lib/*.ts');");
+    const code = transform("const pages = import.meta.glob('./lib/*.ts');", 'development', 'ios', { eagerImports: false });
     expect(code).toContain('"./lib/value.ts": () => import("./lib/value.ts")');
+  });
+
+  it('bundles lazy import.meta.glob loaders eagerly by default', () => {
+    const code = transform("const pages = import.meta.glob('./lib/*.ts');");
+    expect(code).toContain('require("./lib/value.ts")');
   });
 
   it('expands eager import.meta.glob without import option as a namespace', () => {
@@ -95,8 +100,23 @@ describe('vite compat babel plugin', () => {
     expect(code).toContain('__esModule');
   });
 
-  it('leaves dynamic imports alone on native platforms', () => {
-    expect(transform("const load = () => import('./lib/value');", 'development', 'ios')).toMatch(/import\(['"]\.\/lib\/value['"]\)/);
+  it('bundles dynamic imports eagerly on iOS, where dev lazy chunks resolve against the wrong root', () => {
+    const code = transform("const load = () => import('./lib/value');", 'development', 'ios');
+    expect(code).not.toContain('import(');
+    expect(code).toContain('require("./lib/value")');
+  });
+
+  it('bundles dynamic imports eagerly on Android', () => {
+    expect(transform("const load = () => import('./lib/value');", 'development', 'android')).toContain('require("./lib/value")');
+  });
+
+  it('can turn eager imports off on native platforms', () => {
+    const code = transform("const load = () => import('./lib/value');", 'development', 'ios', { eagerImports: false });
+    expect(code).toMatch(/import\(['"]\.\/lib\/value['"]\)/);
+  });
+
+  it('leaves dynamic imports with computed paths alone', () => {
+    expect(transform('const load = (name) => import(name);', 'development', 'ios')).toContain('import(name)');
   });
 
   it('can turn eager imports off', () => {
