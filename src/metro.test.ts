@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { withViteCompat } from './metro.js';
 import type { ViteDevServerShim } from './vite/plugins.js';
 
@@ -58,5 +58,15 @@ describe('withViteCompat', () => {
       middleware?.({ url: '/generated.html', method: 'GET' }, { statusCode: 0, setHeader: () => undefined, end: (b?: string | Buffer) => resolve(String(b)) }, () => resolve('next'));
     });
     expect(body).toBe('generated');
+  });
+
+  it('resolves web stylesheet imports to an empty module on native, but not on web or in the app', () => {
+    const config = withViteCompat({ projectRoot: appRoot }, { root: '..', pregenerate: false });
+    const resolve = config.resolver?.resolveRequest;
+    const next = vi.fn(() => ({ type: 'sourceFile', filePath: '/resolved.css' }));
+    const context = (origin: string) => ({ originModulePath: origin, resolveRequest: next });
+    expect(resolve?.(context('/repo/src/components/sign-in.tsx'), './styles.css', 'ios')).toEqual({ type: 'empty' });
+    expect(resolve?.(context('/repo/src/components/sign-in.tsx'), './styles.css', 'web')).toEqual({ type: 'sourceFile', filePath: '/resolved.css' });
+    expect(resolve?.(context('/repo/native/app/_layout.tsx'), '../global.css', 'ios')).toEqual({ type: 'sourceFile', filePath: '/resolved.css' });
   });
 });

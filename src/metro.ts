@@ -40,6 +40,8 @@ export type ViteCompatMetroOptions = {
 
 // One copy of React, and the native primitives' peers resolved from the app even when the
 // library itself lives outside it (linked or installed from git).
+const STYLESHEET = /\.(css|scss|sass|less)$/;
+
 // The package root (dist/ or src/ sit one level below it).
 const LIBRARY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -120,6 +122,9 @@ export const withViteCompat = <T extends MetroConfig>(config: T, options: ViteCo
       blockList,
       resolveRequest: (context: ResolutionContext, moduleName: string, platform: string | null) => {
         const next = upstream ?? context.resolveRequest;
+        // On native, web components are styled by their classes; their stylesheets are web-only.
+        const fromWebCode = !path.resolve(context.originModulePath).startsWith(`${appRoot}${path.sep}`);
+        if (platform !== 'web' && STYLESHEET.test(moduleName.split('?')[0] ?? moduleName) && fromWebCode) return { type: 'empty' };
         const resolution = resolveViteSpecifier(moduleName, context.originModulePath, resolveOptions);
         if (resolution === null) return next(context, moduleName, platform);
         if ('filePath' in resolution) return { type: 'sourceFile', filePath: resolution.filePath };
