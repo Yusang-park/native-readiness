@@ -322,3 +322,25 @@ describe('barrel imports', () => {
     expect(report.files['src/atoms/mixed.ts']?.imports).toContain('src/atoms/tooltip.tsx');
   });
 });
+
+describe('runtime compatibility layers', () => {
+  it('downgrades browser globals to porting notes when the app installs web globals', () => {
+    const report = analyze({ root, entries, layers, webGlobals: true });
+    const finding = findingsFor(report, 'src/components/chart-tooltip.tsx', 'dom-global')[0];
+    expect(finding?.impact).toBe('needs-port');
+    expect(finding?.message).toContain('web globals');
+  });
+
+  it('stops reporting import.meta and stylesheet imports when the Vite compatibility layer is used', () => {
+    const report = analyze({ root, entries, layers, viteCompat: true });
+    expect(findingsFor(report, 'src/lib/env.ts', 'import-meta')).toEqual([]);
+    expect(findingsFor(report, 'src/components/chart.tsx', 'css-import')).toEqual([]);
+    expect(report.files['src/lib/env.ts']?.status).toBe('native');
+  });
+
+  it('keeps both rules blocking by default', () => {
+    const report = analyze({ root, entries, layers });
+    expect(findingsFor(report, 'src/components/chart-tooltip.tsx', 'dom-global')[0]?.impact).toBe('blocks-native');
+    expect(findingsFor(report, 'src/lib/env.ts', 'import-meta')).toHaveLength(1);
+  });
+});

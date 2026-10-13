@@ -113,6 +113,10 @@ export type AnalyzeOptions = {
   layers?: Layers;
   breakpointHooks?: string[];
   lastChanged?: (file: string) => number | undefined;
+  /** The app installs native-readiness web globals, so browser globals work at runtime. */
+  webGlobals?: boolean;
+  /** The app uses the Vite compatibility layer (import.meta.env, stylesheet imports). */
+  viteCompat?: boolean;
   sharedStatePackages?: string[];
   ignore?: string[];
   changedFiles?: string[];

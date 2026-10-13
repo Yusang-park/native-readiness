@@ -37,6 +37,10 @@ export const loadConfig = (root: string, file?: string): Partial<Config> => {
       config.layers[key] = value;
     }
   }
+  for (const key of ['webGlobals', 'viteCompat'] as const) {
+    const value: unknown = Reflect.get(raw, key);
+    if (typeof value === 'boolean') config[key] = value;
+  }
   const tsconfig: unknown = Reflect.get(raw, 'tsconfig');
   if (typeof tsconfig === 'string') config.tsconfig = tsconfig;
   return config;

@@ -172,8 +172,14 @@ export const analyze = (options: AnalyzeOptions): Report => {
     const scan = scanOf(file);
     const node: Node = { scan, edges: [], packages: [], findings: [] };
     const rel = relative(file);
-    const add = (rule: RuleId, at: { line: number; column: number }, message: string) =>
+    const add = (rule: RuleId, at: { line: number; column: number }, message: string) => {
+      if (options.viteCompat && (rule === 'import-meta' || rule === 'css-import')) return;
+      if (options.webGlobals && rule === 'dom-global') {
+        node.findings.push({ rule, impact: 'needs-port', file: rel, ...at, message: `${message} Covered by web globals at runtime; check the behavior on native.`, inIsland: false });
+        return;
+      }
       node.findings.push({ rule, impact: RULES[rule].impact, file: rel, ...at, message, inIsland: false });
+    };
 
     for (const ref of scan.imports) {
       if (STYLESHEET.test(ref.specifier)) {

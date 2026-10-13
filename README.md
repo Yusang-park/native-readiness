@@ -73,7 +73,9 @@ The command exits 0 unless `--fail-on-regression` is set and new findings appear
     "primitives": ["design-system/**"]
   },
   "breakpointHooks": ["useMediaQuery", "useIsMobile"],
-  "ignore": ["src/legacy/"]
+  "ignore": ["src/legacy/"],
+  "webGlobals": true,
+  "viteCompat": true
 }
 ```
 
