@@ -54,6 +54,11 @@ describe('renderNativeTheme', () => {
     expect(output).toContain('@media (prefers-color-scheme: dark) {\n  :root {\n    --a: 4 5 6;\n  }\n}');
   });
 
+  it('can write a complete NativeWind input file with the Tailwind directives first', () => {
+    const output = renderNativeTheme({ light: { '--a': '1' }, dark: {} }, { tailwindDirectives: true });
+    expect(output.startsWith('@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n:root {')).toBe(true);
+  });
+
   it('omits the dark block when there are no dark variables', () => {
     expect(renderNativeTheme({ light: { '--a': '1' }, dark: {} })).not.toContain('@media');
   });

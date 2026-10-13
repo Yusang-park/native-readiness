@@ -62,8 +62,10 @@ const block = (variables: Record<string, string>, indent: string) =>
     .join('\n');
 
 /** Renders variables in the form NativeWind reads: :root, plus dark values under prefers-color-scheme. */
-export const renderNativeTheme = ({ light, dark }: ThemeVariables) => {
-  const parts = [`:root {\n${block(light, '  ')}\n}`];
+export const renderNativeTheme = ({ light, dark }: ThemeVariables, options: { tailwindDirectives?: boolean } = {}) => {
+  // NativeWind compiles a single input stylesheet, so the variables can live in that file.
+  const directives = options.tailwindDirectives ? ['@tailwind base;\n@tailwind components;\n@tailwind utilities;'] : [];
+  const parts = [...directives, `:root {\n${block(light, '  ')}\n}`];
   if (Object.keys(dark).length > 0) parts.push(`@media (prefers-color-scheme: dark) {\n  :root {\n${block(dark, '    ')}\n  }\n}`);
   return `${parts.join('\n\n')}\n`;
 };
