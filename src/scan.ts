@@ -3,7 +3,11 @@ import { RULES } from './rules.js';
 import { splitVariants, unsupportedTailwindTokens } from './tailwind.js';
 import type { RuleId } from './types.js';
 
-export type ImportRef = { specifier: string; line: number; column: number };
+/** `names` lists the bindings a named import uses; absent means the whole module is used. */
+export type ImportRef = { specifier: string; line: number; column: number; names?: string[] };
+
+/** A re-export: `export { a as b } from 'x'` (named) or `export * from 'x'` (all). */
+export type Reexport = { specifier: string; names: Array<{ exported: string; imported: string }> | 'all' };
 
 export type LocalFinding = { rule: RuleId; line: number; column: number; message: string };
 
@@ -23,6 +27,9 @@ export type FileScan = {
   usesContext: boolean;
   propIssues: PropIssue[];
   exports: ExportSignature[];
+  reexports: Reexport[];
+  /** The file only re-exports other modules, so named imports can skip it. */
+  isBarrel: boolean;
 };
 
 const DOM_GLOBALS = new Set(['window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'location']);
@@ -263,8 +270,14 @@ export const scanFile = (
   };
   const report = (rule: RuleId, node: ts.Node, message: string) =>
     findings.push({ rule, ...position(node), message });
-  const addImport = (specifier: ts.StringLiteralLike) =>
-    imports.push({ specifier: specifier.text, ...position(specifier) });
+  const addImport = (specifier: ts.StringLiteralLike, names?: string[]) =>
+    imports.push({ specifier: specifier.text, ...position(specifier), ...(names ? { names } : {}) });
+
+  const namedImports = (node: ts.ImportDeclaration) => {
+    const clause = node.importClause;
+    if (!clause || clause.name || !clause.namedBindings || !ts.isNamedImports(clause.namedBindings)) return undefined;
+    return clause.namedBindings.elements.filter((element) => !element.isTypeOnly).map((element) => (element.propertyName ?? element.name).text);
+  };
   const addClassStrings = (node: ts.Node) => {
     const strings: ts.Node[] = [];
     collectStrings(node, strings);
@@ -314,7 +327,8 @@ export const scanFile = (
 
   const visit = (node: ts.Node) => {
     if (ts.isImportDeclaration(node) && !isTypeOnlyImport(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      addImport(node.moduleSpecifier);
+      const names = namedImports(node);
+      if (names === undefined || names.length > 0) addImport(node.moduleSpecifier, names);
     } else if (
       ts.isExportDeclaration(node) &&
       !node.isTypeOnly &&
@@ -396,8 +410,36 @@ export const scanFile = (
     report('hover-only', firstReveal, `Revealed only on hover: ${[...new Set(reveals)].join(', ')}.`);
   }
 
+  const reexports: Reexport[] = sourceFile.statements.flatMap((statement): Reexport[] => {
+    if (!ts.isExportDeclaration(statement) || statement.isTypeOnly || !statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) {
+      return [];
+    }
+    const specifier = statement.moduleSpecifier.text;
+    if (!statement.exportClause) return [{ specifier, names: 'all' }];
+    if (!ts.isNamedExports(statement.exportClause)) return [];
+    return [
+      {
+        specifier,
+        names: statement.exportClause.elements
+          .filter((element) => !element.isTypeOnly)
+          .map((element) => ({ exported: element.name.text, imported: (element.propertyName ?? element.name).text })),
+      },
+    ];
+  });
+  const isBarrel =
+    reexports.length > 0 &&
+    sourceFile.statements.every(
+      (statement) =>
+        (ts.isExportDeclaration(statement) && (statement.isTypeOnly || statement.moduleSpecifier !== undefined)) ||
+        (ts.isImportDeclaration(statement) && statement.importClause?.isTypeOnly === true) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement),
+    );
+
   const defaultExport = findDefaultExport(sourceFile);
   return {
+    reexports,
+    isBarrel,
     imports,
     findings: findings.sort((a, b) => a.line - b.line || a.column - b.column),
     isDomRoot: hasDirective(sourceFile, 'use dom'),

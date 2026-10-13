@@ -113,13 +113,63 @@ export const analyze = (options: AnalyzeOptions): Report => {
     );
   };
 
+  const scans = new Map<string, FileScan>();
+  const scanOf = (file: string) => {
+    const cached = scans.get(file);
+    if (cached) return cached;
+    const scan = scanFile(file, fs.readFileSync(file, 'utf8'), { breakpointHooks: options.breakpointHooks });
+    scans.set(file, scan);
+    return scan;
+  };
+  const resolveProject = (specifier: string, from: string) => {
+    const resolved = ts.resolveModuleName(specifier, from, compilerOptions, ts.sys, cache).resolvedModule;
+    return resolved && !resolved.isExternalLibraryImport && isProjectFile(resolved.resolvedFileName) ? path.resolve(resolved.resolvedFileName) : undefined;
+  };
+  const exportsName = (file: string, name: string, seen: Set<string>): boolean => {
+    if (seen.has(file)) return false;
+    seen.add(file);
+    const scan = scanOf(file);
+    if (scan.exports.some((signature) => signature.name === name)) return true;
+    return scan.reexports.some((reexport) => {
+      if (reexport.names !== 'all') return false;
+      const source = resolveProject(reexport.specifier, file);
+      return source !== undefined && exportsName(source, name, seen);
+    });
+  };
+  // Named imports from a barrel (a file that only re-exports) go straight to the files that
+  // define those names, the way bundlers and barrel-splitting Babel plugins treat them.
+  const throughBarrels = (target: string, names: string[] | undefined, seen: Set<string>): string[] => {
+    if (names === undefined || seen.has(target)) return [target];
+    const scan = scanOf(target);
+    if (!scan.isBarrel) return [target];
+    const files = new Set<string>();
+    for (const name of names) {
+      let entry: { source: string | undefined; imported: string } | undefined;
+      for (const reexport of scan.reexports) {
+        if (reexport.names === 'all') continue;
+        const match = reexport.names.find((candidate) => candidate.exported === name);
+        if (match) entry = { source: resolveProject(reexport.specifier, target), imported: match.imported };
+      }
+      if (!entry) {
+        const source = scan.reexports
+          .filter((reexport) => reexport.names === 'all')
+          .map((reexport) => resolveProject(reexport.specifier, target))
+          .find((candidate) => candidate !== undefined && exportsName(candidate, name, new Set()));
+        entry = { source, imported: name };
+      }
+      if (entry.source === undefined) return [target];
+      for (const file of throughBarrels(entry.source, [entry.imported], new Set([...seen, target]))) files.add(file);
+    }
+    return [...files];
+  };
+
   const entries = options.entries.map((entry) => path.resolve(root, entry));
   const graph = new Map<string, Node>();
   const queue = [...entries];
   while (queue.length > 0) {
     const file = queue.shift();
     if (file === undefined || graph.has(file)) continue;
-    const scan = scanFile(file, fs.readFileSync(file, 'utf8'), { breakpointHooks: options.breakpointHooks });
+    const scan = scanOf(file);
     const node: Node = { scan, edges: [], packages: [], findings: [] };
     const rel = relative(file);
     const add = (rule: RuleId, at: { line: number; column: number }, message: string) =>
@@ -132,9 +182,10 @@ export const analyze = (options: AnalyzeOptions): Report => {
       }
       const resolved = ts.resolveModuleName(ref.specifier, file, compilerOptions, ts.sys, cache).resolvedModule;
       if (resolved && !resolved.isExternalLibraryImport && isProjectFile(resolved.resolvedFileName)) {
-        const target = path.resolve(resolved.resolvedFileName);
-        if (!node.edges.includes(target)) node.edges.push(target);
-        queue.push(target);
+        for (const target of throughBarrels(path.resolve(resolved.resolvedFileName), ref.names, new Set())) {
+          if (!node.edges.includes(target)) node.edges.push(target);
+          queue.push(target);
+        }
         continue;
       }
       if (!isBareSpecifier(ref.specifier) || (resolved && !resolved.isExternalLibraryImport)) continue;

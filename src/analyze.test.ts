@@ -290,3 +290,30 @@ describe('renderMarkdown', () => {
     expect(markdown).toContain('src/components/chart.tsx');
   });
 });
+
+describe('barrel imports', () => {
+  it('follows named imports through a barrel to the files that define them', () => {
+    const report = analyze({ root, entries: ['src/screens/barrel-screen.tsx'], layers });
+    expect(Object.keys(report.files).sort()).toEqual([
+      'src/atoms/button.native.tsx',
+      'src/atoms/icon.tsx',
+      'src/screens/barrel-screen.tsx',
+    ]);
+  });
+
+  it('resolves names re-exported with export *', () => {
+    const report = analyze({ root, entries: ['src/screens/barrel-screen.tsx'], layers });
+    expect(report.files['src/screens/barrel-screen.tsx']?.imports).toContain('src/atoms/icon.tsx');
+  });
+
+  it('keeps the whole barrel for namespace imports', () => {
+    const report = analyze({ root, entries: ['src/screens/namespace-screen.tsx'], layers });
+    expect(report.files['src/atoms/index.ts']).toBeDefined();
+    expect(report.files['src/atoms/tooltip.tsx']).toBeDefined();
+  });
+
+  it('does not split modules that also define their own code', () => {
+    const report = analyze({ root, entries: ['src/screens/namespace-screen.tsx'], layers });
+    expect(report.files['src/atoms/mixed.ts']?.imports).toContain('src/atoms/tooltip.tsx');
+  });
+});
