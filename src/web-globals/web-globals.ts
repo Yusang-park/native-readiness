@@ -19,7 +19,7 @@ type Dimensions = {
 
 export type WebGlobalsOptions = {
   /** The global object to fill in (globalThis in an app). */
-  target: Record<string, unknown>;
+  target: object;
   /** The web app's origin, e.g. https://onesheet.club. Relative URLs resolve against it. */
   origin: string;
   /** Persistent key-value storage (AsyncStorage). */
@@ -179,8 +179,8 @@ const evaluateMediaQuery = (query: string, width: number) => {
 
 const isRelative = (url: string) => url.startsWith('/') && !url.startsWith('//');
 
-const define = (target: Record<string, unknown>, key: string, value: unknown) => {
-  if (target[key] === undefined) target[key] = value;
+const define = (target: object, key: string, value: unknown) => {
+  if (Reflect.get(target, key) === undefined) Reflect.set(target, key, value);
 };
 
 /**
@@ -276,16 +276,18 @@ export const installWebGlobals = async (options: WebGlobalsOptions) => {
   define(target, 'history', { pushState: (_state: unknown, _title: string, url: string) => navigate(toPath(url)), replaceState: noop, back: noop, length: 1 });
 
   const locale = options.locale ?? Intl.DateTimeFormat().resolvedOptions().locale;
-  const navigatorValue = typeof target.navigator === 'object' && target.navigator !== null ? target.navigator : {};
+  const existingNavigator: unknown = Reflect.get(target, 'navigator');
+  const navigatorValue = typeof existingNavigator === 'object' && existingNavigator !== null ? existingNavigator : {};
   if (Reflect.get(navigatorValue, 'language') === undefined) {
     Object.assign(navigatorValue, { language: locale, languages: [locale], userAgent: Reflect.get(navigatorValue, 'userAgent') ?? 'ReactNative' });
   }
-  target.navigator = navigatorValue;
+  Reflect.set(target, 'navigator', navigatorValue);
 
-  const originalFetch = target.fetch;
+  const originalFetch: unknown = Reflect.get(target, 'fetch');
   if (typeof originalFetch === 'function') {
-    target.fetch = (input: unknown, init?: unknown) =>
-      Reflect.apply(originalFetch, target, [typeof input === 'string' && isRelative(input) ? `${base}${input}` : input, init]);
+    Reflect.set(target, 'fetch', (input: unknown, init?: unknown) =>
+      Reflect.apply(originalFetch, target, [typeof input === 'string' && isRelative(input) ? `${base}${input}` : input, init]),
+    );
   }
 
   return {
