@@ -38,3 +38,18 @@ export const scrollDirection = (className: string | undefined): 'vertical' | 'ho
   if (tokens.some((token) => /^overflow(-y)?-(auto|scroll)$/.test(token))) return 'vertical';
   return null;
 };
+
+const variantsOf = (token: string) => token.slice(0, token.length - utilityOf(token).length).split(':').filter(Boolean);
+
+// Keyboard-focus styles and pointer utilities never apply on touch screens. They are dropped
+// before NativeWind sees them; animating focus rings also breaks NativeWind on Reanimated 4.
+const isNativeNoOp = (token: string) =>
+  variantsOf(token).some((variant) => variant === 'focus-visible' || variant === 'group-focus-visible' || variant === 'peer-focus-visible') ||
+  /^(cursor-|select-)/.test(utilityOf(token));
+
+/** The class list without utilities that do nothing on native. */
+export const nativeClassName = (className: string | undefined) =>
+  (className ?? '')
+    .split(/\s+/)
+    .filter((token) => token !== '' && !isNativeNoOp(token))
+    .join(' ');

@@ -110,6 +110,11 @@ describe('jsx runtime', () => {
     expect(jsx('svg', {}).type).toBe(H.svg);
   });
 
+  it('passes custom element names through, so library checks such as NativeWind\'s pragma probe still work', () => {
+    expect(jsx('react-native-css-interop-jsx-pragma-check', {}).type).toBe('react-native-css-interop-jsx-pragma-check');
+    expect(jsx('my-widget', {}).type).toBe('my-widget');
+  });
+
   it('leaves components untouched', () => {
     const Component = () => null;
     expect(jsx(Component, {}).type).toBe(Component);

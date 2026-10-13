@@ -23,7 +23,7 @@ import {
   Text as SvgText,
   Use,
 } from 'react-native-svg';
-import { mergeTextClasses, scrollDirection, splitTextClasses } from './classes.js';
+import { mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
 import { useAssetUrl, useNativeNavigate } from './navigation.js';
 import { nativeStyle } from './style.js';
 import { TextClassProvider, useInheritedTextClasses } from './text-context.js';
@@ -98,20 +98,16 @@ const nativeRef = <T,>(ref: unknown) => ref as Ref<T> | undefined;
  * Bare strings cannot sit inside a View. Runs of inline content become one Text so that
  * "Hello <b>you</b>" stays on one line; other children are left as they are.
  */
+const isTextLike = (child: ReactNode) => typeof child === 'string' || typeof child === 'number';
+
 const renderChildren = (children: ReactNode, textClass: string) => {
+  // Children.toArray is only used to inspect; the original children are rendered so React's
+  // element bookkeeping stays on the elements it created.
   const list = Children.toArray(children);
   if (list.length === 0) return null;
-  if (!list.some((child) => typeof child === 'string' || typeof child === 'number')) return children;
-  if (list.every(isInline)) return <Text className={textClass}>{list}</Text>;
-  return list.map((child, index) =>
-    typeof child === 'string' || typeof child === 'number' ? (
-      <Text key={`t${index}`} className={textClass}>
-        {child}
-      </Text>
-    ) : (
-      child
-    ),
-  );
+  if (!list.some(isTextLike)) return children;
+  if (list.every(isInline)) return <Text className={textClass}>{children}</Text>;
+  return Children.map(children, (child) => (isTextLike(child) ? <Text className={textClass}>{child}</Text> : child));
 };
 
 const CONTENT_LAYOUT = /^(flex|inline-flex|grid|gap-|gap-x-|gap-y-|space-[xy]-|items-|justify-|content-|p-|px-|py-|pt-|pr-|pb-|pl-|ps-|pe-|flex-(row|col|wrap))/;
@@ -124,7 +120,9 @@ const splitScrollClasses = (className: string) => {
 
 /** Block containers: div, section, main, ul, li, … */
 const Box = (props: WebProps) => {
-  const { className, children, onClick, hidden, ref } = props;
+  const { className: rawClassName, children, onClick, hidden, ref  } = props;
+
+  const className = nativeClassName(rawClassName);
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   const { box, text } = splitTextClasses(className);
@@ -160,7 +158,9 @@ const Box = (props: WebProps) => {
 
 /** Inline text: span, p, h1–h6, strong, label, … */
 const Span = markInline((props: WebProps) => {
-  const { className, children, onClick, hidden, ref } = props;
+  const { className: rawClassName, children, onClick, hidden, ref  } = props;
+
+  const className = nativeClassName(rawClassName);
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   const textClass = mergeTextClasses(inherited, className);
@@ -182,7 +182,7 @@ const Span = markInline((props: WebProps) => {
 
 const Br = markInline(() => <Text>{'\n'}</Text>);
 
-const Hr = ({ className }: WebProps) => <View className={`h-px w-full bg-current opacity-20 ${className ?? ''}`} />;
+const Hr = ({ className }: WebProps) => <View className={`h-px w-full bg-current opacity-20 ${nativeClassName(className)}`} />;
 
 type FormContextValue = { submit: () => void };
 const FormContext = createContext<FormContextValue | null>(null);
@@ -202,7 +202,9 @@ const Form = (props: WebProps) => {
 };
 
 const Button = (props: WebProps) => {
-  const { className, children, onClick, disabled, type, hidden, ref } = props;
+  const { className: rawClassName, children, onClick, disabled, type, hidden, ref  } = props;
+
+  const className = nativeClassName(rawClassName);
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
@@ -236,7 +238,9 @@ const Button = (props: WebProps) => {
 const isExternal = (href: string) => /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//');
 
 const Anchor = markInline((props: WebProps) => {
-  const { className, children, onClick, href, hidden } = props;
+  const { className: rawClassName, children, onClick, href, hidden  } = props;
+
+  const className = nativeClassName(rawClassName);
   const navigate = useNativeNavigate();
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
@@ -275,7 +279,9 @@ const KEYBOARD: Record<string, KeyboardTypeOptions> = {
 };
 
 const Input = (props: WebProps) => {
-  const { className, type, value, defaultValue, placeholder, onChange, onBlur, onFocus, onKeyDown, disabled, readOnly, maxLength, autoFocus, checked, hidden, ref } = props;
+  const { className: rawClassName, type, value, defaultValue, placeholder, onChange, onBlur, onFocus, onKeyDown, disabled, readOnly, maxLength, autoFocus, checked, hidden, ref  } = props;
+
+  const className = nativeClassName(rawClassName);
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
   if (hidden || type === 'hidden') return null;
@@ -320,7 +326,9 @@ const Input = (props: WebProps) => {
 };
 
 const Textarea = (props: WebProps) => {
-  const { className, value, defaultValue, placeholder, onChange, disabled, rows, hidden } = props;
+  const { className: rawClassName, value, defaultValue, placeholder, onChange, disabled, rows, hidden  } = props;
+
+  const className = nativeClassName(rawClassName);
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   return (
@@ -349,7 +357,9 @@ const CONTENT_FIT: Record<string, 'cover' | 'contain' | 'fill' | 'none' | 'scale
 };
 
 const Img = (props: WebProps) => {
-  const { className, src, alt, width, height, hidden } = props;
+  const { className: rawClassName, src, alt, width, height, hidden  } = props;
+
+  const className = nativeClassName(rawClassName);
   const assetUrl = useAssetUrl();
   if (hidden || typeof src !== 'string' || src === '') return null;
   const fit = (className ?? '').split(/\s+/).map((token) => CONTENT_FIT[token]).find(Boolean);

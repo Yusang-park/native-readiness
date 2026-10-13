@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeTextClasses, scrollDirection, splitTextClasses } from './classes.js';
+import { mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
 
 describe('splitTextClasses', () => {
   it('separates text utilities from box utilities', () => {
@@ -45,5 +45,23 @@ describe('scrollDirection', () => {
     expect(scrollDirection('flex overflow-x-auto')).toBe('horizontal');
     expect(scrollDirection('overflow-hidden')).toBeNull();
     expect(scrollDirection(undefined)).toBeNull();
+  });
+});
+
+describe('nativeClassName', () => {
+  it('drops keyboard-focus variants, which never apply on touch screens', () => {
+    expect(nativeClassName('p-2 transition focus-visible:ring-2 focus-visible:outline-none')).toBe('p-2 transition');
+  });
+
+  it('drops cursor and text-selection utilities', () => {
+    expect(nativeClassName('cursor-pointer select-none flex md:cursor-default')).toBe('flex');
+  });
+
+  it('keeps hover and active variants, which tablets and presses use', () => {
+    expect(nativeClassName('hover:bg-gray-100 active:bg-gray-200')).toBe('hover:bg-gray-100 active:bg-gray-200');
+  });
+
+  it('handles missing class names', () => {
+    expect(nativeClassName(undefined)).toBe('');
   });
 });

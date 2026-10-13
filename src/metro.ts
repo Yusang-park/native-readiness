@@ -49,6 +49,8 @@ export const DEFAULT_SINGLETONS = [
   'react-native',
   'react-native-web',
   'scheduler',
+  // Web-root files compiled with the native JSX runtime import it, but only the app depends on it.
+  'native-readiness',
   'nativewind',
   'react-native-css-interop',
   'expo-image',

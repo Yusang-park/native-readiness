@@ -180,7 +180,7 @@ describe('resolveViteSpecifier', () => {
   it('resolves the native primitives\' peers from the app by default', async () => {
     const { DEFAULT_SINGLETONS } = await import('../metro.js');
     expect(DEFAULT_SINGLETONS).toEqual(
-      expect.arrayContaining(['nativewind', 'react-native-css-interop', 'expo-image', 'react-native-svg', 'expo-router']),
+      expect.arrayContaining(['native-readiness', 'nativewind', 'react-native-css-interop', 'expo-image', 'react-native-svg', 'expo-router']),
     );
   });
 
