@@ -181,7 +181,11 @@ const Box = (props: WebProps) => {
   const textClass = mergeTextClasses(inherited, text);
   const content = renderChildren(children, textClass);
   const style = nativeStyle(props.style);
-  const shared = { ...accessibility(props), ...(style ? { style } : {}) };
+  // A label on a plain container would make iOS treat the whole subtree as one element, hiding
+  // its contents from accessibility; only interactive containers keep it.
+  const interactive = onClick !== undefined || props.role === 'button' || props.role === 'link' || props.role === 'img';
+  const { accessibilityLabel: _label, ...unlabelled } = accessibility(props);
+  const shared = { ...(interactive ? accessibility(props) : unlabelled), ...(style ? { style } : {}) };
   const scroll = scrollDirection(className);
   const grid = gridLayout(box);
 

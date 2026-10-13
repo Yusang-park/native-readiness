@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Linking } from 'react-native';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsx } from '../jsx-runtime.js';
@@ -7,7 +7,10 @@ import { NativeNavigationProvider } from './navigation.js';
 import { H, primitiveFor } from './primitives.js';
 import { useInheritedTextClasses } from './text-context.js';
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const InheritedProbe = () => <span data-testid="probe">{useInheritedTextClasses()}</span>;
 
@@ -105,6 +108,25 @@ describe('primitives', () => {
     const c = screen.getByText('c');
     expect(a.parentElement?.parentElement).not.toBe(c.parentElement?.parentElement);
     expect(screen.getByText('b').parentElement?.parentElement).toBe(a.parentElement?.parentElement);
+  });
+
+  it('does not turn labelled containers into a single accessibility element', () => {
+    render(
+      <H.div aria-label="Sign in dialog">
+        <H.button>Log In</H.button>
+      </H.div>,
+    );
+    expect(screen.queryByLabelText('Sign in dialog')).toBeNull();
+    expect(screen.getByText('Log In')).toBeTruthy();
+  });
+
+  it('keeps labels on pressable containers', () => {
+    render(
+      <H.div aria-label="Open sheet" onClick={() => undefined}>
+        card
+      </H.div>,
+    );
+    expect(screen.getByLabelText('Open sheet')).toBeTruthy();
   });
 
   it('labels images with their alt text', () => {
