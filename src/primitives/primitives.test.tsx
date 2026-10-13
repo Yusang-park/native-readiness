@@ -56,6 +56,13 @@ describe('primitives', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: 'a@b.c' }) }));
   });
 
+  it('gives change events the input\'s name, id and type like a DOM input', () => {
+    const onChange = vi.fn();
+    render(<H.input name="username" id="user" type="email" placeholder="User" onChange={onChange} />);
+    fireEvent.change(screen.getByPlaceholderText('User'), { target: { value: 'me' } });
+    expect(onChange.mock.calls[0]?.[0].target).toMatchObject({ value: 'me', name: 'username', id: 'user', type: 'email' });
+  });
+
   it('submits the enclosing form from a submit button', () => {
     const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
     render(

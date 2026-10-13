@@ -55,13 +55,16 @@ import { useAssetUrl, useNativeNavigate } from "./navigation.js";
 import { nativeStyle } from "./style.js";
 import { TextClassProvider, useInheritedTextClasses } from "./text-context.js";
 
+/** The element attributes web handlers read from event.target. */
+type EventTarget = { value?: string; checked?: boolean; name?: string; id?: string; type?: string };
+
 /** The subset of a DOM event that web handlers commonly read. */
 export type WebEvent = {
   preventDefault: () => void;
   stopPropagation: () => void;
   defaultPrevented: boolean;
-  target: { value?: string; checked?: boolean };
-  currentTarget: { value?: string; checked?: boolean };
+  target: EventTarget;
+  currentTarget: EventTarget;
   key?: string;
 };
 
@@ -80,6 +83,13 @@ const webEvent = (target: WebEvent["target"] = {}, key?: string): WebEvent => {
 };
 
 type Handler = (event: WebEvent) => void;
+
+/** Like a DOM input, the event target carries the element's name, id and type. */
+const targetAttributes = (props: Record<string, unknown>): EventTarget => ({
+  ...(typeof props.name === "string" ? { name: props.name } : {}),
+  ...(typeof props.id === "string" ? { id: props.id } : {}),
+  ...(typeof props.type === "string" ? { type: props.type } : {}),
+});
 
 /** Props web elements commonly receive. Unknown attributes are accepted and ignored. */
 export type WebProps = {
@@ -463,6 +473,7 @@ const Input = (props: WebProps) => {
   } = props;
 
   const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
+  const attributes = targetAttributes(props);
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
   if (hidden || type === "hidden") return null;
@@ -474,7 +485,7 @@ const Input = (props: WebProps) => {
       <Switch
         value={checked === true}
         disabled={disabled === true}
-        onValueChange={(next) => call(onChange, webEvent({ checked: next }))}
+        onValueChange={(next) => call(onChange, webEvent({ ...attributes, checked: next }))}
         {...accessibility(props)}
       />
     );
@@ -501,11 +512,11 @@ const Input = (props: WebProps) => {
       }
       autoFocus={autoFocus === true}
       editable={disabled !== true && readOnly !== true}
-      onChangeText={(text) => call(onChange, webEvent({ value: text }))}
+      onChangeText={(text) => call(onChange, webEvent({ ...attributes, value: text }))}
       onBlur={() =>
         call(
           onBlur,
-          webEvent({ ...(typeof value === "string" ? { value } : {}) }),
+          webEvent({ ...attributes, ...(typeof value === "string" ? { value } : {}) }),
         )
       }
       onFocus={() => call(onFocus, webEvent())}
@@ -544,7 +555,7 @@ const Textarea = (props: WebProps) => {
       {...(typeof rows === "number" ? { numberOfLines: rows } : {})}
       editable={disabled !== true}
       onChangeText={(text) => {
-        if (typeof onChange === "function") onChange(webEvent({ value: text }));
+        if (typeof onChange === "function") onChange(webEvent({ ...targetAttributes(props), value: text }));
       }}
       {...accessibility(props)}
     />
