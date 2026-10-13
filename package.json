@@ -12,7 +12,9 @@
   "files": [
     "dist",
     "RULES.md",
-    "README.md"
+    "README.md",
+    "docs",
+    "skills"
   ],
   "engines": {
     "node": ">=20"

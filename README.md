@@ -125,7 +125,7 @@ What it covers:
 | `/src/...` root-absolute imports | Resolved against the web root |
 | `?react` SVG imports | Compiled with SVGR when Metro starts; editor-only namespaces (Inkscape, Sodipodi) are stripped |
 | `?raw` / `?url` | String modules / plain asset paths |
-| `import()` chunks | Bundled eagerly in web (DOM) bundles, so islands never fetch chunks outside the app |
+| `import()` chunks | Bundled eagerly on every platform: islands never fetch chunks outside the app, and native dev bundles never request lazy chunks Metro resolves against the wrong root |
 | `public/` and dev-generated files | `staticDirs` and `vitePlugins` serve them from Metro, same origin as the island |
 | One React | `react`, `react-dom`, `react-native`, `react-native-web`, `scheduler` always resolve from the native app |
 | `tslib` | Redirected to its ES build, whose default entry Metro cannot interop |
@@ -135,6 +135,10 @@ Island tips learned the hard way:
 - Expo's DOM root is a row flexbox. Wrap the web app in an element with `flex: 1 1 0%; min-width: 0`, or container-query layouts collapse to zero width.
 - Each island is its own WebView with its own JavaScript state; `localStorage` is shared, so sessions carry across islands.
 - If the web app hardcodes `BrowserRouter`, alias `react-router-dom` to a module whose router blocks paths owned by other native screens (`history.block` returning `false`) and hands them to the native stack.
+
+## Rendering web screens natively
+
+To render the web's components as real native views (HTML tags mapped to React Native primitives, styled by NativeWind with the web's theme), follow [docs/native-screens.md](docs/native-screens.md). It covers setup and a troubleshooting table of failures seen in real apps.
 
 ## Rules
 
@@ -174,6 +178,8 @@ Add something like this to `AGENTS.md` / `CLAUDE.md`:
 - Never fix a warning by editing the web implementation's behavior; add a `.native.tsx` sibling instead.
 - Run `npx native-readiness explain <rule>` before fixing an unfamiliar rule.
 ```
+
+Agents that support skills can load [skills/native-readiness/SKILL.md](skills/native-readiness/SKILL.md), which carries the setup and debugging workflow.
 
 ## Limits
 
