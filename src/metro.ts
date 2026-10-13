@@ -123,6 +123,8 @@ export const withViteCompat = <T extends MetroConfig>(config: T, options: ViteCo
       blockList,
       resolveRequest: (context: ResolutionContext, moduleName: string, platform: string | null) => {
         const next = upstream ?? context.resolveRequest;
+        // Metro never targets Node; server-only branches that import built-ins get empty modules.
+        if (moduleName.startsWith('node:')) return { type: 'empty' };
         const shim = NATIVE_SHIMS[moduleName];
         if (platform !== 'web' && shim !== undefined) {
           return { type: 'sourceFile', filePath: path.join(LIBRARY_ROOT, 'dist', 'shims', `${shim}.js`) };

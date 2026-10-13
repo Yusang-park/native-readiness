@@ -80,4 +80,12 @@ describe('withViteCompat', () => {
     expect(resolve?.(context, '@radix-ui/react-popover', 'android')).toEqual({ type: 'sourceFile', filePath: expect.stringMatching(/radix-popover\.js$/) });
     expect(resolve?.(context, 'framer-motion', 'web')).toEqual({ type: 'sourceFile', filePath: '/real.js' });
   });
+
+  it('resolves Node built-ins to empty modules, as Vite does for browser builds', () => {
+    const config = withViteCompat({ projectRoot: appRoot }, { root: '..', pregenerate: false });
+    const next = vi.fn(() => ({ type: 'sourceFile', filePath: '/x.js' }));
+    const context = { originModulePath: '/repo/src/lib/react-i18n.ts', resolveRequest: next };
+    expect(config.resolver?.resolveRequest?.(context, 'node:fs/promises', 'ios')).toEqual({ type: 'empty' });
+    expect(config.resolver?.resolveRequest?.(context, 'node:path', 'web')).toEqual({ type: 'empty' });
+  });
 });
