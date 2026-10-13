@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Linking } from 'react-native';
+import { useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsx } from '../jsx-runtime.js';
 import { NativeNavigationProvider } from './navigation.js';
@@ -61,6 +62,25 @@ describe('primitives', () => {
     render(<H.input name="username" id="user" type="email" placeholder="User" onChange={onChange} />);
     fireEvent.change(screen.getByPlaceholderText('User'), { target: { value: 'me' } });
     expect(onChange.mock.calls[0]?.[0].target).toMatchObject({ value: 'me', name: 'username', id: 'user', type: 'email' });
+  });
+
+  it('keeps children mounted when a container gains or loses text classes', () => {
+    const mounts = vi.fn();
+    const Child = () => {
+      useEffect(() => mounts(), []);
+      return null;
+    };
+    const { rerender } = render(
+      <H.div className="relative">
+        <Child />
+      </H.div>,
+    );
+    rerender(
+      <H.div className="relative text-sm">
+        <Child />
+      </H.div>,
+    );
+    expect(mounts).toHaveBeenCalledTimes(1);
   });
 
   it('submits the enclosing form from a submit button', () => {

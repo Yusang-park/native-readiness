@@ -282,11 +282,8 @@ const Box = (props: WebProps) => {
       </View>
     );
   }
-  return text ? (
-    <TextClassProvider value={textClass}>{element}</TextClassProvider>
-  ) : (
-    element
-  );
+  // Always wrapped, so the tree keeps its shape (and children stay mounted) when text classes change.
+  return <TextClassProvider value={textClass}>{element}</TextClassProvider>;
 };
 
 /** Inline text: span, p, h1–h6, strong, label, … */
