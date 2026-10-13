@@ -145,8 +145,39 @@ class ElementShim {
 
   addEventListener = noop;
   removeEventListener = noop;
+  dispatchEvent = () => true;
   querySelector = () => null;
   querySelectorAll = () => [];
+  getElementsByTagName = () => [];
+  getElementsByClassName = () => [];
+  focus = noop;
+  blur = noop;
+  click = noop;
+  scrollIntoView = noop;
+  scrollTo = noop;
+  append = noop;
+  prepend = noop;
+  remove = noop;
+  insertBefore = <T,>(child: T) => child;
+  replaceChildren = noop;
+  contains = () => false;
+  closest = () => null;
+  matches = () => false;
+  cloneNode = () => new ElementShim();
+  getBoundingClientRect = () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 });
+  readonly children: ElementShim[] = [];
+  readonly childNodes: ElementShim[] = [];
+  readonly parentNode = null;
+  readonly parentElement = null;
+  readonly offsetWidth = 0;
+  readonly offsetHeight = 0;
+  readonly clientWidth = 0;
+  readonly clientHeight = 0;
+  readonly scrollHeight = 0;
+  scrollTop = 0;
+  scrollLeft = 0;
+  textContent = '';
+  innerHTML = '';
 }
 
 class EventShim {

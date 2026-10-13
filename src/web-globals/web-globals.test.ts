@@ -168,6 +168,25 @@ describe('installWebGlobals', () => {
     }
   });
 
+  it('gives document elements the common element methods', async () => {
+    const { target } = await setup();
+    const body = (target.document as Document).body;
+    expect(body.dispatchEvent(new (target.Event as typeof Event)('pointerdown'))).toBe(true);
+    expect(() => {
+      body.focus();
+      body.blur();
+      body.click();
+      body.scrollIntoView();
+      body.append('x');
+      body.remove();
+    }).not.toThrow();
+    expect(body.getBoundingClientRect()).toMatchObject({ width: 0, height: 0, top: 0, left: 0 });
+    expect(body.contains(null)).toBe(false);
+    expect(body.closest('div')).toBeNull();
+    expect(body.matches('div')).toBe(false);
+    expect(Array.from(body.children)).toEqual([]);
+  });
+
   it('fills in navigator.language', async () => {
     const { target } = await setup({ locale: 'ko-KR' });
     expect((target.navigator as Navigator).language).toBe('ko-KR');
