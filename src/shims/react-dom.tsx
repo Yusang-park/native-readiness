@@ -1,6 +1,6 @@
 /** @jsxImportSource nativewind */
 import type { ReactNode } from 'react';
-import { Modal } from 'react-native';
+import { Modal, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Native stand-in for react-dom. Portals render in a top-level native layer that, like a browser
@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export const createPortal = (children: ReactNode, _container?: unknown) => (
   <Modal transparent visible animationType="none" statusBarTranslucent>
     <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      {children}
+      {/* Absolute overlays position against this box, which starts below the status bar. */}
+      <View style={{ flex: 1 }}>{children}</View>
     </SafeAreaView>
   </Modal>
 );
