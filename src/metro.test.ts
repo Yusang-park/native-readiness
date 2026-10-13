@@ -6,9 +6,10 @@ import type { ViteDevServerShim } from './vite/plugins.js';
 const appRoot = '/repo/native';
 
 describe('withViteCompat', () => {
-  it('watches the web root', () => {
+  it('watches the web root and the library itself, so a linked copy can be bundled', () => {
     const config = withViteCompat({ projectRoot: appRoot, watchFolders: [] }, { root: '..', pregenerate: false });
-    expect(config.watchFolders).toEqual(['/repo']);
+    const libraryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+    expect(config.watchFolders).toEqual(['/repo', libraryRoot]);
   });
 
   it('leaves the server root alone so the native entry keeps resolving', () => {

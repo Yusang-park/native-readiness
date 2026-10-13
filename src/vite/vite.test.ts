@@ -177,6 +177,13 @@ describe('resolveViteSpecifier', () => {
     ).toBeNull();
   });
 
+  it('resolves the native primitives\' peers from the app by default', async () => {
+    const { DEFAULT_SINGLETONS } = await import('../metro.js');
+    expect(DEFAULT_SINGLETONS).toEqual(
+      expect.arrayContaining(['nativewind', 'react-native-css-interop', 'expo-image', 'react-native-svg', 'expo-router']),
+    );
+  });
+
   it('keeps one copy of singleton packages by resolving them from the app', () => {
     expect(resolveViteSpecifier('react', origin, { ...options, singletons: ['react'], appRoot: '/app' })).toEqual({
       moduleName: 'react',

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { viteDevMiddleware, type VitePluginLike } from './vite/plugins.js';
 import { serveStaticDirs, type StaticRequest, type StaticResponse } from './static.js';
 import { pregenerateViteModules, resolveViteSpecifier, type ViteResolveOptions } from './vite/resolve.js';
@@ -37,7 +38,25 @@ export type ViteCompatMetroOptions = {
   pregenerateInclude?: string[];
 };
 
-export const DEFAULT_SINGLETONS = ['react', 'react-dom', 'react-native', 'react-native-web', 'scheduler'];
+// One copy of React, and the native primitives' peers resolved from the app even when the
+// library itself lives outside it (linked or installed from git).
+// The package root (dist/ or src/ sit one level below it).
+const LIBRARY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+export const DEFAULT_SINGLETONS = [
+  'react',
+  'react-dom',
+  'react-native',
+  'react-native-web',
+  'scheduler',
+  'nativewind',
+  'react-native-css-interop',
+  'expo-image',
+  'react-native-svg',
+  'expo-router',
+  'react-native-reanimated',
+  'react-native-safe-area-context',
+];
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -93,7 +112,7 @@ export const withViteCompat = <T extends MetroConfig>(config: T, options: ViteCo
   return {
     ...config,
     ...(server ? { server } : {}),
-    watchFolders: [...new Set([...(config.watchFolders ?? []), root])],
+    watchFolders: [...new Set([...(config.watchFolders ?? []), root, LIBRARY_ROOT])],
     resolver: {
       ...config.resolver,
       blockList,
