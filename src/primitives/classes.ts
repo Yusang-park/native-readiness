@@ -123,3 +123,23 @@ export const gridLayout = (className: string | undefined) => {
     rest: tokens.filter((token) => !GRID_ONLY.test(utilityOf(token))).join(' '),
   };
 };
+
+const STATE_VARIANTS = new Set(['hover', 'active', 'focus', 'focus-within', 'disabled']);
+
+/**
+ * NativeWind makes any element with a state variant touch-responsive to track that state, so
+ * text inside a button would swallow the button's press. State variants never reach text: on a
+ * pressable they become group-active (driven by the pressable, marked `group`), elsewhere they are
+ * dropped.
+ */
+export const textStateClasses = (textClass: string, pressable: boolean) =>
+  textClass
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((token) => {
+      const variants = variantsOf(token);
+      if (!variants.some((variant) => STATE_VARIANTS.has(variant))) return [token];
+      if (!pressable || variants.some((variant) => variant !== 'hover' && variant !== 'active')) return [];
+      return [`group-active:${utilityOf(token)}`];
+    })
+    .join(' ');

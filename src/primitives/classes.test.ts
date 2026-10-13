@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridLayout, mergeTextClasses, nativeClassName, pressClassName, scrollDirection, splitTextClasses } from './classes.js';
+import { gridLayout, mergeTextClasses, nativeClassName, pressClassName, scrollDirection, splitTextClasses, textStateClasses } from './classes.js';
 
 describe('splitTextClasses', () => {
   it('separates text utilities from box utilities', () => {
@@ -119,5 +119,15 @@ describe('pressClassName', () => {
 
   it('leaves group and peer hover alone', () => {
     expect(pressClassName('group-hover:underline')).toBe('group-hover:underline');
+  });
+});
+
+describe('textStateClasses', () => {
+  it('drops interaction states from inherited text so plain text never captures touches', () => {
+    expect(textStateClasses('text-sm hover:text-foreground focus:underline', false)).toBe('text-sm');
+  });
+
+  it('drives a pressable container\'s text states from the container when pressed', () => {
+    expect(textStateClasses('text-subtle hover:text-foreground active:underline', true)).toBe('text-subtle group-active:text-foreground group-active:underline');
   });
 });

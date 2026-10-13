@@ -47,6 +47,7 @@ import {
   pressClassName,
   scrollDirection,
   splitTextClasses,
+  textStateClasses,
 } from "./classes.js";
 import { useAssetUrl, useNativeNavigate } from "./navigation.js";
 import { nativeStyle } from "./style.js";
@@ -178,7 +179,7 @@ const Box = (props: WebProps) => {
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   const { box, text } = splitTextClasses(className);
-  const textClass = mergeTextClasses(inherited, text);
+  const textClass = textStateClasses(mergeTextClasses(inherited, text), onClick !== undefined);
   const content = renderChildren(children, textClass);
   const style = nativeStyle(props.style);
   // A label on a plain container would make iOS treat the whole subtree as one element, hiding
@@ -231,7 +232,7 @@ const Box = (props: WebProps) => {
     element = (
       <Pressable
         ref={nativeRef<View>(ref)}
-        className={pressClassName(box)}
+        className={`group ${pressClassName(box)}`}
         onPress={() => onClick(webEvent())}
         accessible={interactive}
         {...(interactive ? { accessibilityRole: props.role === 'link' ? ('link' as const) : ('button' as const) } : {})}
@@ -261,7 +262,9 @@ const Span = markInline((props: WebProps) => {
   const className = nativeClassName(rawClassName);
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
-  const textClass = mergeTextClasses(inherited, className);
+  const textClass = onClick
+    ? mergeTextClasses(inherited, className)
+    : textStateClasses(mergeTextClasses(inherited, className), false);
   const style = nativeStyle(props.style);
   return (
     <TextClassProvider value={textClass}>
@@ -323,7 +326,7 @@ const Button = (props: WebProps) => {
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   const { box, text } = splitTextClasses(className);
-  const textClass = mergeTextClasses(inherited, text);
+  const textClass = textStateClasses(mergeTextClasses(inherited, text), true);
   const style = nativeStyle(props.style);
   const press = () => {
     if (disabled === true) return;
@@ -335,7 +338,7 @@ const Button = (props: WebProps) => {
     <TextClassProvider value={textClass}>
       <Pressable
         ref={nativeRef<View>(ref)}
-        className={pressClassName(box)}
+        className={`group ${pressClassName(box)}`}
         disabled={disabled === true}
         onPress={press}
         accessibilityRole="button"
@@ -389,11 +392,11 @@ const Anchor = markInline((props: WebProps) => {
     );
   }
   const { box, text } = splitTextClasses(className);
-  const textClass = mergeTextClasses(inherited, text);
+  const textClass = textStateClasses(mergeTextClasses(inherited, text), true);
   return (
     <TextClassProvider value={textClass}>
       <Pressable
-        className={pressClassName(box)}
+        className={`group ${pressClassName(box)}`}
         onPress={follow}
         accessibilityRole="link"
         {...accessibility(props)}
