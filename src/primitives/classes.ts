@@ -47,12 +47,60 @@ const isNativeNoOp = (token: string) =>
   variantsOf(token).some((variant) => variant === 'focus-visible' || variant === 'group-focus-visible' || variant === 'peer-focus-visible') ||
   /^(cursor-|select-)/.test(utilityOf(token));
 
-/** The class list without utilities that do nothing on native. */
+const SAFE_AREA = /^(p|pt|pb|pl|pr|px|py|m|mt|mb|ml|mr)-\[env\(safe-area-inset-(?:top|bottom|left|right)\)\]$/;
+
+/**
+ * Rewrites a utility into what NativeWind can render: rings become borders (rings render broken),
+ * dynamic viewport units become vh or full size, fixed becomes absolute (portals sit at the
+ * screen root), and safe-area env() padding becomes NativeWind's *-safe utilities.
+ * Returns null to drop the utility.
+ */
+const translateUtility = (utility: string): string | null => {
+  if (utility === 'ring') return 'border-[3px]';
+  if (/^ring-(0|inset)$/.test(utility) || utility.startsWith('ring-offset')) return null;
+  const ringWidth = /^ring-(\d+|\[[^\]]+\])$/.exec(utility)?.[1];
+  if (ringWidth !== undefined) return ringWidth === '1' ? 'border' : `border-${ringWidth}`;
+  if (utility.startsWith('ring-')) return `border-${utility.slice('ring-'.length)}`;
+  const screen = /^(h|min-h|max-h|w|min-w|max-w)-screen$/.exec(utility);
+  if (screen) return `${screen[1]}-full`;
+  const fullViewport = /^(h|min-h|max-h|w|min-w|max-w)-\[100(?:d|s|l)?v[hw]\]$/.exec(utility);
+  if (fullViewport) return `${fullViewport[1]}-full`;
+  if (utility === 'fixed') return 'absolute';
+  const safeArea = SAFE_AREA.exec(utility);
+  if (safeArea) return `${safeArea[1]}-safe`;
+  return utility.replace(/\[(\d+(?:\.\d+)?)(?:d|s|l)vh\]/, '[$1vh]');
+};
+
+/** The class list rewritten for native: no-op utilities dropped, unsupported ones translated. */
 export const nativeClassName = (className: string | undefined) =>
   (className ?? '')
     .split(/\s+/)
     .filter((token) => token !== '' && !isNativeNoOp(token))
+    .flatMap((token) => {
+      const utility = utilityOf(token);
+      const prefix = token.slice(0, token.length - utility.length);
+      const important = utility.startsWith('!') ? '!' : '';
+      const translated = translateUtility(important ? utility.slice(1) : utility);
+      return translated === null ? [] : [`${prefix}${important}${translated}`];
+    })
     .join(' ');
+
+/**
+ * Touch browsers show hover styles while an element is pressed. Pressables without their own
+ * pressed (active:) styles get the same feedback on native.
+ */
+export const pressClassName = (className: string | undefined) => {
+  const tokens = (className ?? '').split(/\s+/).filter(Boolean);
+  if (tokens.some((token) => variantsOf(token).includes('active'))) return tokens.join(' ');
+  const pressed = tokens
+    .filter((token) => variantsOf(token).includes('hover'))
+    .map((token) => {
+      const utility = utilityOf(token);
+      const variants = variantsOf(token).map((variant) => (variant === 'hover' ? 'active' : variant));
+      return `${variants.join(':')}:${utility}`;
+    });
+  return [...tokens, ...pressed].join(' ');
+};
 
 const GRID_ONLY = /^(grid|inline-grid|grid-cols-|grid-rows-|grid-flow-|auto-cols-|auto-rows-|col-|row-|gap-|gap$)/;
 

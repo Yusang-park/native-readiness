@@ -1,12 +1,16 @@
 /** @jsxImportSource nativewind */
 import type { ReactNode } from 'react';
 import { Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Native stand-in for react-dom. Portals render in a top-level native layer; the DOM-only
-// APIs are no-ops.
+// Native stand-in for react-dom. Portals render in a top-level native layer that, like a browser
+// viewport, starts below the status bar; bottom insets come from the content's safe-area classes.
+// The DOM-only APIs are no-ops.
 export const createPortal = (children: ReactNode, _container?: unknown) => (
-  <Modal transparent visible animationType="none">
-    {children}
+  <Modal transparent visible animationType="none" statusBarTranslucent>
+    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+      {children}
+    </SafeAreaView>
   </Modal>
 );
 export const flushSync = <T,>(callback: () => T) => callback();

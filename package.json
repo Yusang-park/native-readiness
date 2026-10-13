@@ -50,6 +50,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-safe-area-context": "^5.10.1",
     "react-native-svg": "^15.15.5",
     "react-native-web": "^0.21.4",
     "vitest": "^3.2.0"
@@ -100,6 +101,7 @@
     "nativewind": ">=4",
     "react": ">=19",
     "react-native": ">=0.79",
+    "react-native-safe-area-context": "*",
     "react-native-svg": "*"
   },
   "peerDependenciesMeta": {
@@ -116,6 +118,9 @@
       "optional": true
     },
     "react-native-svg": {
+      "optional": true
+    },
+    "react-native-safe-area-context": {
       "optional": true
     }
   }

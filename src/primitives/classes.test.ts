@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridLayout, mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
+import { gridLayout, mergeTextClasses, nativeClassName, pressClassName, scrollDirection, splitTextClasses } from './classes.js';
 
 describe('splitTextClasses', () => {
   it('separates text utilities from box utilities', () => {
@@ -82,5 +82,42 @@ describe('gridLayout', () => {
   it('returns null for non-grid containers', () => {
     expect(gridLayout('flex gap-2')).toBeNull();
     expect(gridLayout('grid')).toBeNull();
+  });
+});
+
+describe('nativeClassName translations', () => {
+  it('draws focus rings as borders, keeping variants and colors', () => {
+    expect(nativeClassName('border border-gray-200 focus:ring-2 focus:ring-brand')).toBe('border border-gray-200 focus:border-2 focus:border-brand');
+    expect(nativeClassName('ring-2 ring-danger/15 ring-offset-2')).toBe('border-2 border-danger/15');
+    expect(nativeClassName('ring')).toBe('border-[3px]');
+  });
+
+  it('maps dynamic viewport units to what React Native supports', () => {
+    expect(nativeClassName('h-[100dvh] w-screen max-h-[92dvh] min-h-[50svh]')).toBe('h-full w-full max-h-[92vh] min-h-[50vh]');
+    expect(nativeClassName('h-screen min-h-screen')).toBe('h-full min-h-full');
+  });
+
+  it('positions fixed elements against the screen root', () => {
+    expect(nativeClassName('fixed inset-0 md:fixed')).toBe('absolute inset-0 md:absolute');
+  });
+
+  it('turns safe-area env() padding into NativeWind safe-area utilities', () => {
+    expect(nativeClassName('pb-[env(safe-area-inset-bottom)] max-md:pt-[env(safe-area-inset-top)]')).toBe('pb-safe max-md:pt-safe');
+  });
+});
+
+describe('pressClassName', () => {
+  it('shows hover styles while pressed when the element has no pressed styles', () => {
+    expect(pressClassName('bg-transparent hover:bg-gray-50 dark:hover:text-white')).toBe(
+      'bg-transparent hover:bg-gray-50 dark:hover:text-white active:bg-gray-50 dark:active:text-white',
+    );
+  });
+
+  it('keeps explicit pressed styles as they are', () => {
+    expect(pressClassName('hover:bg-gray-50 active:bg-gray-100')).toBe('hover:bg-gray-50 active:bg-gray-100');
+  });
+
+  it('leaves group and peer hover alone', () => {
+    expect(pressClassName('group-hover:underline')).toBe('group-hover:underline');
   });
 });

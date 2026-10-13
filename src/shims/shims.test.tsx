@@ -44,6 +44,11 @@ describe('react-dom shim', () => {
     expect(screen.getByText('in portal')).toBeTruthy();
   });
 
+  it('keeps portal content below the status bar, like a page inside the browser viewport', () => {
+    render(<div>{createPortal(<span>under the bar</span>, null)}</div>);
+    expect(screen.getByText('under the bar').closest('[data-safe-area]')?.getAttribute('data-safe-area')).toBe('top');
+  });
+
   it('runs flushSync callbacks', () => {
     expect(flushSync(() => 3)).toBe(3);
   });
