@@ -69,10 +69,15 @@ export default function createElementBabel({ types: t }: Babel): PluginObject<Pl
   return {
     name: 'native-readiness-create-element',
     visitor: {
-      CallExpression(path, state) {
-        if (!isCreateElement(path, path.node.callee) && !isInteropCreate(path, path.node.callee)) return;
-        state.replacement ??= addNamed(path, 'createElement', SOURCE, { nameHint: 'nativeCreateElement' });
-        path.node.callee = t.cloneNode(state.replacement);
+      // Runs at Program entry, ahead of NativeWind's plugin, which rewrites createElement there too.
+      Program(program, state) {
+        program.traverse({
+          CallExpression(path) {
+            if (!isCreateElement(path, path.node.callee) && !isInteropCreate(path, path.node.callee)) return;
+            state.replacement ??= addNamed(path, 'createElement', SOURCE, { nameHint: 'nativeCreateElement' });
+            path.node.callee = t.cloneNode(state.replacement);
+          },
+        });
       },
     },
   };
