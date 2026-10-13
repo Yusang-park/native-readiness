@@ -57,6 +57,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./dist/runtime-root.js",
+      "browser": "./dist/runtime-root.js",
       "default": "./dist/index.js"
     },
     "./metro": {
