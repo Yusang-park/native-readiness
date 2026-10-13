@@ -92,6 +92,13 @@ describe('nativeClassName translations', () => {
     expect(nativeClassName('ring')).toBe('border-[3px]');
   });
 
+  it('lets a ring replace the border it is drawn as, so a focused input shows its ring color', () => {
+    expect(nativeClassName('border border-background-200 border-transparent ring-2 ring-brand')).toBe('border-2 border-brand');
+    expect(nativeClassName('border border-gray-200 focus:border-transparent focus:ring-2 focus:ring-brand')).toBe(
+      'border border-gray-200 focus:border-2 focus:border-brand',
+    );
+  });
+
   it('maps dynamic viewport units to what React Native supports', () => {
     expect(nativeClassName('h-[100dvh] w-screen max-h-[92dvh] min-h-[50svh]')).toBe('h-full w-full max-h-[92vh] min-h-[50vh]');
     expect(nativeClassName('h-screen min-h-screen')).toBe('h-full min-h-full');

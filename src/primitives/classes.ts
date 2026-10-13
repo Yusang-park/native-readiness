@@ -71,19 +71,34 @@ const translateUtility = (utility: string): string | null => {
   return utility.replace(/\[(\d+(?:\.\d+)?)(?:d|s|l)vh\]/, '[$1vh]');
 };
 
+const BORDER_WIDTH = /^border(-(\d+|\[[^\]]+\]))?$/;
+const BORDER_COLOR = /^border-(?!\d|\[|[trblxyse]-|[trblxyse]$|solid|dashed|dotted|double|none|hidden|collapse|separate|spacing)/;
+
 /** The class list rewritten for native: no-op utilities dropped, unsupported ones translated. */
-export const nativeClassName = (className: string | undefined) =>
-  (className ?? '')
+export const nativeClassName = (className: string | undefined) => {
+  const translated = (className ?? '')
     .split(/\s+/)
     .filter((token) => token !== '' && !isNativeNoOp(token))
     .flatMap((token) => {
       const utility = utilityOf(token);
       const prefix = token.slice(0, token.length - utility.length);
       const important = utility.startsWith('!') ? '!' : '';
-      const translated = translateUtility(important ? utility.slice(1) : utility);
-      return translated === null ? [] : [`${prefix}${important}${translated}`];
-    })
+      const bare = important ? utility.slice(1) : utility;
+      const result = translateUtility(bare);
+      return result === null ? [] : [{ prefix, utility: `${important}${result}`, fromRing: bare.startsWith('ring') }];
+    });
+  // A ring is drawn as the border, so it replaces the border width and color under the same variants.
+  const ringWidth = new Set(translated.filter((item) => item.fromRing && BORDER_WIDTH.test(item.utility)).map((item) => item.prefix));
+  const ringColor = new Set(translated.filter((item) => item.fromRing && BORDER_COLOR.test(item.utility)).map((item) => item.prefix));
+  return translated
+    .filter(
+      (item) =>
+        item.fromRing ||
+        !((ringWidth.has(item.prefix) && BORDER_WIDTH.test(item.utility)) || (ringColor.has(item.prefix) && BORDER_COLOR.test(item.utility))),
+    )
+    .map((item) => `${item.prefix}${item.utility}`)
     .join(' ');
+};
 
 
 const GRID_ONLY = /^(grid|inline-grid|grid-cols-|grid-rows-|grid-flow-|auto-cols-|auto-rows-|col-|row-|gap-|gap$)/;
