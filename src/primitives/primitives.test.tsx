@@ -120,3 +120,12 @@ describe('jsx runtime', () => {
     expect(jsx(Component, {}).type).toBe(Component);
   });
 });
+
+describe('createElement', () => {
+  it('maps intrinsic tags and keeps children', async () => {
+    const { createElement } = await import('../jsx-runtime.js');
+    const element = createElement('div', { className: 'p-2' }, 'a', 'b');
+    expect(element.type).toBe(H.div);
+    expect(element.props).toMatchObject({ className: 'p-2', children: ['a', 'b'] });
+  });
+});

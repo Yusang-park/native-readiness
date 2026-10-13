@@ -32,6 +32,7 @@
     "ai-agents"
   ],
   "dependencies": {
+    "@babel/helper-module-imports": "^8.0.0",
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "tailwind-merge": "^3.7.0",
@@ -41,6 +42,7 @@
     "@babel/core": "^8.0.7",
     "@testing-library/react": "^16.3.3",
     "@types/babel__core": "^7.20.5",
+    "@types/babel__helper-module-imports": "^7.18.3",
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
     "expo-image": "^57.0.5",
@@ -85,13 +87,17 @@
     "./web-globals": {
       "types": "./dist/web-globals/web-globals.d.ts",
       "default": "./dist/web-globals/web-globals.js"
+    },
+    "./babel-create-element": {
+      "types": "./dist/create-element-babel.d.ts",
+      "default": "./dist/create-element-babel.js"
     }
   },
   "peerDependencies": {
+    "expo-image": "*",
+    "nativewind": ">=4",
     "react": ">=19",
     "react-native": ">=0.79",
-    "nativewind": ">=4",
-    "expo-image": "*",
     "react-native-svg": "*"
   },
   "peerDependenciesMeta": {

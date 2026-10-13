@@ -28,3 +28,10 @@ export const jsx = (type: JsxType, props: Props, key?: Key) =>
 
 export const jsxs = (type: JsxType, props: Props, key?: Key) =>
   isCustomElement(type) ? passThrough(baseJsxs, type, props, key) : baseJsxs(...map(type, props), key);
+
+/** React.createElement with the same tag mapping, for compiled libraries (see create-element-babel). */
+export const createElement = (type: JsxType, props: Props | null, ...children: unknown[]) => {
+  const { key, ...rest } = props ?? {};
+  const withChildren = children.length === 0 ? rest : { ...rest, children: children.length === 1 ? children[0] : children };
+  return jsx(type, withChildren, typeof key === 'string' || typeof key === 'number' ? key : undefined);
+};
