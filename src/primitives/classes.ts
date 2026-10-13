@@ -53,3 +53,25 @@ export const nativeClassName = (className: string | undefined) =>
     .split(/\s+/)
     .filter((token) => token !== '' && !isNativeNoOp(token))
     .join(' ');
+
+const GRID_ONLY = /^(grid|inline-grid|grid-cols-|grid-rows-|grid-flow-|auto-cols-|auto-rows-|col-|row-|gap-|gap$)/;
+
+/**
+ * Equal-column CSS grids (`grid grid-cols-N gap-…`), the common case, rendered as rows of
+ * equal flex cells. Only the mobile-first base column count applies on phones.
+ */
+export const gridLayout = (className: string | undefined) => {
+  const tokens = (className ?? '').split(/\s+/).filter(Boolean);
+  const base = tokens.filter((token) => variantsOf(token).length === 0);
+  const columns = base.map((token) => /^grid-cols-(\d+)$/.exec(token)?.[1]).find((value) => value !== undefined);
+  if (!base.includes('grid') || columns === undefined) return null;
+  const gap = base.map((token) => /^gap-(.+)$/.exec(token)?.[1]).find((value) => value !== undefined && !value.startsWith('x-') && !value.startsWith('y-'));
+  const gapX = base.map((token) => /^gap-x-(.+)$/.exec(token)?.[1]).find((value) => value !== undefined) ?? gap;
+  const gapY = base.map((token) => /^gap-y-(.+)$/.exec(token)?.[1]).find((value) => value !== undefined) ?? gap;
+  return {
+    columns: Number(columns),
+    rowGap: gapY === undefined ? '' : `gap-y-${gapY}`,
+    columnGap: gapX === undefined ? '' : `gap-x-${gapX}`,
+    rest: tokens.filter((token) => !GRID_ONLY.test(utilityOf(token))).join(' '),
+  };
+};

@@ -93,6 +93,20 @@ describe('primitives', () => {
     expect(screen.getByTestId('probe').textContent).toBe('text-sm font-bold text-gray-500');
   });
 
+  it('lays out equal-column grids as rows of equal cells', () => {
+    render(
+      <H.div className="grid grid-cols-2 gap-2">
+        <H.span>a</H.span>
+        <H.span>b</H.span>
+        <H.span>c</H.span>
+      </H.div>,
+    );
+    const a = screen.getByText('a');
+    const c = screen.getByText('c');
+    expect(a.parentElement?.parentElement).not.toBe(c.parentElement?.parentElement);
+    expect(screen.getByText('b').parentElement?.parentElement).toBe(a.parentElement?.parentElement);
+  });
+
   it('labels images with their alt text', () => {
     render(<H.img src="https://example.com/a.png" alt="Artist photo" />);
     expect(screen.getByLabelText('Artist photo')).toBeTruthy();

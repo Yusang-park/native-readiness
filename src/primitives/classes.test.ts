@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
+import { gridLayout, mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
 
 describe('splitTextClasses', () => {
   it('separates text utilities from box utilities', () => {
@@ -63,5 +63,24 @@ describe('nativeClassName', () => {
 
   it('handles missing class names', () => {
     expect(nativeClassName(undefined)).toBe('');
+  });
+});
+
+describe('gridLayout', () => {
+  it('reads the column count and gaps of an equal-column grid', () => {
+    expect(gridLayout('grid grid-cols-2 gap-2 rounded-lg p-1')).toEqual({ columns: 2, rowGap: 'gap-y-2', columnGap: 'gap-x-2', rest: 'rounded-lg p-1' });
+  });
+
+  it('reads separate row and column gaps', () => {
+    expect(gridLayout('grid grid-cols-3 gap-x-4 gap-y-1')).toMatchObject({ columns: 3, rowGap: 'gap-y-1', columnGap: 'gap-x-4' });
+  });
+
+  it('uses the mobile-first base columns and ignores larger breakpoints', () => {
+    expect(gridLayout('grid grid-cols-1 md:grid-cols-3')).toMatchObject({ columns: 1, rest: '' });
+  });
+
+  it('returns null for non-grid containers', () => {
+    expect(gridLayout('flex gap-2')).toBeNull();
+    expect(gridLayout('grid')).toBeNull();
   });
 });

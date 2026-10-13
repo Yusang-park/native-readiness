@@ -23,7 +23,7 @@ import {
   Text as SvgText,
   Use,
 } from 'react-native-svg';
-import { mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
+import { gridLayout, mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses } from './classes.js';
 import { useAssetUrl, useNativeNavigate } from './navigation.js';
 import { nativeStyle } from './style.js';
 import { TextClassProvider, useInheritedTextClasses } from './text-context.js';
@@ -131,9 +131,27 @@ const Box = (props: WebProps) => {
   const style = nativeStyle(props.style);
   const shared = { ...accessibility(props), ...(style ? { style } : {}) };
   const scroll = scrollDirection(className);
+  const grid = gridLayout(box);
 
   let element: ReactNode;
-  if (scroll) {
+  if (grid) {
+    const cells = Children.toArray(content);
+    const rows: ReactNode[][] = [];
+    for (let index = 0; index < cells.length; index += grid.columns) rows.push(cells.slice(index, index + grid.columns));
+    element = (
+      <View ref={nativeRef<View>(ref)} className={`${grid.rest} ${grid.rowGap}`} {...shared}>
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} className={`flex-row ${grid.columnGap}`}>
+            {Array.from({ length: grid.columns }, (_, column) => (
+              <View key={column} className="min-w-0 flex-1">
+                {row[column] ?? null}
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+  } else if (scroll) {
     const { outer, content: layout } = splitScrollClasses(box);
     element = (
       <ScrollView ref={nativeRef<ScrollView>(ref)} horizontal={scroll === 'horizontal'} className={outer} contentContainerClassName={layout} {...shared}>
