@@ -81,6 +81,10 @@
     "./fonts": {
       "types": "./dist/fonts/fonts.d.ts",
       "default": "./dist/fonts/fonts.js"
+    },
+    "./web-globals": {
+      "types": "./dist/web-globals/web-globals.d.ts",
+      "default": "./dist/web-globals/web-globals.js"
     }
   },
   "peerDependencies": {
