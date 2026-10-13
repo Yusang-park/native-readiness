@@ -69,4 +69,15 @@ describe('withViteCompat', () => {
     expect(resolve?.(context('/repo/src/components/sign-in.tsx'), './styles.css', 'web')).toEqual({ type: 'sourceFile', filePath: '/resolved.css' });
     expect(resolve?.(context('/repo/native/app/_layout.tsx'), '../global.css', 'ios')).toEqual({ type: 'sourceFile', filePath: '/resolved.css' });
   });
+
+  it('swaps web-only packages for native shims on native platforms only', () => {
+    const config = withViteCompat({ projectRoot: appRoot }, { root: '..', pregenerate: false });
+    const resolve = config.resolver?.resolveRequest;
+    const next = vi.fn(() => ({ type: 'sourceFile', filePath: '/real.js' }));
+    const context = { originModulePath: '/repo/design-system/input/index.tsx', resolveRequest: next };
+    const shim = resolve?.(context, 'framer-motion', 'ios');
+    expect(shim).toEqual({ type: 'sourceFile', filePath: expect.stringMatching(/dist[\\/]shims[\\/]framer-motion\.js$/) });
+    expect(resolve?.(context, '@radix-ui/react-popover', 'android')).toEqual({ type: 'sourceFile', filePath: expect.stringMatching(/radix-popover\.js$/) });
+    expect(resolve?.(context, 'framer-motion', 'web')).toEqual({ type: 'sourceFile', filePath: '/real.js' });
+  });
 });

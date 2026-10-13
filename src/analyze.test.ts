@@ -93,6 +93,11 @@ describe('analyze', () => {
     });
   });
 
+  it('does not flag packages that have native shims', async () => {
+    const { DEFAULT_NATIVE_SAFE_PACKAGES } = await import('./packages.js');
+    expect(DEFAULT_NATIVE_SAFE_PACKAGES).toEqual(expect.arrayContaining(['framer-motion', 'react-dom', '@radix-ui/react-popover', '@radix-ui/react-dialog', '@radix-ui/react-tooltip']));
+  });
+
   it('does not flag packages known to be native-safe', () => {
     expect(findingsFor(report, 'src/components/header.tsx', 'web-package')).toEqual([]);
   });

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { viteDevMiddleware, type VitePluginLike } from './vite/plugins.js';
+import { NATIVE_SHIMS } from './packages.js';
 import { serveStaticDirs, type StaticRequest, type StaticResponse } from './static.js';
 import { pregenerateViteModules, resolveViteSpecifier, type ViteResolveOptions } from './vite/resolve.js';
 
@@ -122,6 +123,10 @@ export const withViteCompat = <T extends MetroConfig>(config: T, options: ViteCo
       blockList,
       resolveRequest: (context: ResolutionContext, moduleName: string, platform: string | null) => {
         const next = upstream ?? context.resolveRequest;
+        const shim = NATIVE_SHIMS[moduleName];
+        if (platform !== 'web' && shim !== undefined) {
+          return { type: 'sourceFile', filePath: path.join(LIBRARY_ROOT, 'dist', 'shims', `${shim}.js`) };
+        }
         // On native, web components are styled by their classes; their stylesheets are web-only.
         const fromWebCode = !path.resolve(context.originModulePath).startsWith(`${appRoot}${path.sep}`);
         if (platform !== 'web' && STYLESHEET.test(moduleName.split('?')[0] ?? moduleName) && fromWebCode) return { type: 'empty' };

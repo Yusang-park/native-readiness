@@ -24,7 +24,16 @@ export const DEFAULT_WEB_ONLY_PACKAGES = [
   'cmdk',
 ];
 
-export const DEFAULT_NATIVE_SAFE_PACKAGES = ['@radix-ui/react-slot', '@udecode/cn'];
+/** Packages native-readiness replaces with native shims in native bundles (see metro.ts). */
+export const NATIVE_SHIMS: Record<string, string> = {
+  'framer-motion': 'framer-motion',
+  'react-dom': 'react-dom',
+  '@radix-ui/react-popover': 'radix-popover',
+  '@radix-ui/react-dialog': 'radix-dialog',
+  '@radix-ui/react-tooltip': 'radix-tooltip',
+};
+
+export const DEFAULT_NATIVE_SAFE_PACKAGES = ['@radix-ui/react-slot', '@udecode/cn', ...Object.keys(NATIVE_SHIMS)];
 
 export const DEFAULT_SHARED_STATE_PACKAGES = [
   'zustand',
