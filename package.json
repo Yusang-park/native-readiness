@@ -33,12 +33,22 @@
   "dependencies": {
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
+    "tailwind-merge": "^3.7.0",
     "typescript": "^5.6.0"
   },
   "devDependencies": {
     "@babel/core": "^8.0.7",
+    "@testing-library/react": "^16.3.3",
     "@types/babel__core": "^7.20.5",
     "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "expo-image": "^57.0.5",
+    "jsdom": "^30.1.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-svg": "^15.15.5",
+    "react-native-web": "^0.21.4",
     "vitest": "^3.2.0"
   },
   "exports": {
@@ -54,6 +64,42 @@
       "types": "./dist/vite/babel.d.ts",
       "default": "./dist/vite/babel.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./primitives": {
+      "types": "./dist/primitives/index.d.ts",
+      "default": "./dist/primitives/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "default": "./dist/jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "default": "./dist/jsx-dev-runtime.js"
+    }
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-native": ">=0.79",
+    "nativewind": ">=4",
+    "expo-image": "*",
+    "react-native-svg": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "nativewind": {
+      "optional": true
+    },
+    "expo-image": {
+      "optional": true
+    },
+    "react-native-svg": {
+      "optional": true
+    }
   }
 }
