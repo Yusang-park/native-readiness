@@ -5,6 +5,7 @@ import {
   createContext,
   isValidElement,
   useContext,
+  useState,
   type ElementType,
   type ReactNode,
   type Ref,
@@ -44,9 +45,10 @@ import {
   gridLayout,
   mergeTextClasses,
   nativeClassName,
-  pressClassName,
+  pressStates,
   scrollDirection,
   splitTextClasses,
+  resolveDisabled,
   textStateClasses,
 } from "./classes.js";
 import { useAssetUrl, useNativeNavigate } from "./navigation.js";
@@ -94,6 +96,9 @@ export type WebProps = {
   ref?: Ref<unknown>;
   [attribute: string]: unknown;
 };
+
+const isDisabled = (props: WebProps) =>
+  props.disabled === true || props['aria-disabled'] === true || props['aria-disabled'] === 'true';
 
 const accessibility = (props: WebProps) => ({
   ...(props["aria-label"] === undefined
@@ -171,15 +176,33 @@ const splitScrollClasses = (className: string) => {
   };
 };
 
+/**
+ * Resting and pressed classes for a pressable's box and text, switched on press-in/out.
+ * NativeWind's active: styles do not resolve theme colors defined as CSS variables, so the
+ * pressed state is tracked here and applied as plain classes.
+ */
+const usePressClasses = (box: string, text: string) => {
+  const [pressed, setPressed] = useState(false);
+  const boxStates = pressStates(box);
+  const textStates = pressStates(text);
+  return {
+    box: pressed ? boxStates.pressed : boxStates.rest,
+    text: pressed ? textStates.pressed : textStates.rest,
+    handlers: { onPressIn: () => setPressed(true), onPressOut: () => setPressed(false) },
+  };
+};
+
 /** Block containers: div, section, main, ul, li, … */
 const Box = (props: WebProps) => {
   const { className: rawClassName, children, onClick, hidden, ref } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const inherited = useInheritedTextClasses();
-  if (hidden) return null;
   const { box, text } = splitTextClasses(className);
-  const textClass = textStateClasses(mergeTextClasses(inherited, text), onClick !== undefined);
+  const merged = mergeTextClasses(inherited, text);
+  const press = usePressClasses(box, merged);
+  if (hidden) return null;
+  const textClass = onClick ? press.text : textStateClasses(merged);
   const content = renderChildren(children, textClass);
   const style = nativeStyle(props.style);
   // A label on a plain container would make iOS treat the whole subtree as one element, hiding
@@ -232,8 +255,9 @@ const Box = (props: WebProps) => {
     element = (
       <Pressable
         ref={nativeRef<View>(ref)}
-        className={`group ${pressClassName(box)}`}
+        className={press.box}
         onPress={() => onClick(webEvent())}
+        {...press.handlers}
         accessible={interactive}
         {...(interactive ? { accessibilityRole: props.role === 'link' ? ('link' as const) : ('button' as const) } : {})}
         {...shared}
@@ -259,21 +283,21 @@ const Box = (props: WebProps) => {
 const Span = markInline((props: WebProps) => {
   const { className: rawClassName, children, onClick, hidden, ref } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const inherited = useInheritedTextClasses();
+  const merged = mergeTextClasses(inherited, className);
+  const press = usePressClasses('', merged);
   if (hidden) return null;
-  const textClass = onClick
-    ? mergeTextClasses(inherited, className)
-    : textStateClasses(mergeTextClasses(inherited, className), false);
+  const textClass = onClick ? press.text : textStateClasses(merged);
   const style = nativeStyle(props.style);
   return (
     <TextClassProvider value={textClass}>
       <InsideTextContext.Provider value>
         <Text
           ref={nativeRef<Text>(ref)}
-          className={onClick ? pressClassName(textClass) : textClass}
+          className={textClass}
           {...(onClick
-            ? { onPress: () => onClick(webEvent()), suppressHighlighting: true }
+            ? { onPress: () => onClick(webEvent()), suppressHighlighting: true, ...press.handlers }
             : {})}
           {...accessibility(props)}
           {...(style ? { style } : {})}
@@ -321,12 +345,13 @@ const Button = (props: WebProps) => {
     ref,
   } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
-  if (hidden) return null;
   const { box, text } = splitTextClasses(className);
-  const textClass = textStateClasses(mergeTextClasses(inherited, text), true);
+  const pressClasses = usePressClasses(box, mergeTextClasses(inherited, text));
+  if (hidden) return null;
+  const textClass = pressClasses.text;
   const style = nativeStyle(props.style);
   const press = () => {
     if (disabled === true) return;
@@ -338,9 +363,10 @@ const Button = (props: WebProps) => {
     <TextClassProvider value={textClass}>
       <Pressable
         ref={nativeRef<View>(ref)}
-        className={`group ${pressClassName(box)}`}
+        className={pressClasses.box}
         disabled={disabled === true}
         onPress={press}
+        {...pressClasses.handlers}
         accessibilityRole="button"
         accessibilityState={{ disabled: disabled === true }}
         {...accessibility(props)}
@@ -358,10 +384,12 @@ const isExternal = (href: string) =>
 const Anchor = markInline((props: WebProps) => {
   const { className: rawClassName, children, onClick, href, hidden } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const navigate = useNativeNavigate();
   const inherited = useInheritedTextClasses();
   const insideText = useContext(InsideTextContext);
+  const { box, text } = splitTextClasses(className);
+  const pressClasses = usePressClasses(insideText ? '' : box, mergeTextClasses(inherited, insideText ? className : text));
   if (hidden) return null;
   const follow = () => {
     const event = webEvent();
@@ -378,11 +406,11 @@ const Anchor = markInline((props: WebProps) => {
   };
   // Inside running text a link stays Text so it flows inline; elsewhere it behaves like a button.
   if (insideText) {
-    const textClass = mergeTextClasses(inherited, className);
     return (
       <Text
-        className={pressClassName(textClass)}
+        className={pressClasses.text}
         onPress={follow}
+        {...pressClasses.handlers}
         suppressHighlighting
         accessibilityRole="link"
         {...accessibility(props)}
@@ -391,13 +419,13 @@ const Anchor = markInline((props: WebProps) => {
       </Text>
     );
   }
-  const { box, text } = splitTextClasses(className);
-  const textClass = textStateClasses(mergeTextClasses(inherited, text), true);
+  const textClass = pressClasses.text;
   return (
     <TextClassProvider value={textClass}>
       <Pressable
-        className={`group ${pressClassName(box)}`}
+        className={pressClasses.box}
         onPress={follow}
+        {...pressClasses.handlers}
         accessibilityRole="link"
         {...accessibility(props)}
       >
@@ -434,7 +462,7 @@ const Input = (props: WebProps) => {
     ref,
   } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const form = useContext(FormContext);
   const inherited = useInheritedTextClasses();
   if (hidden || type === "hidden") return null;
@@ -503,7 +531,7 @@ const Textarea = (props: WebProps) => {
     hidden,
   } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const inherited = useInheritedTextClasses();
   if (hidden) return null;
   return (
@@ -537,7 +565,7 @@ const CONTENT_FIT: Record<
 const Img = (props: WebProps) => {
   const { className: rawClassName, src, alt, width, height, hidden } = props;
 
-  const className = nativeClassName(rawClassName);
+  const className = resolveDisabled(nativeClassName(rawClassName), isDisabled(props));
   const assetUrl = useAssetUrl();
   if (hidden || typeof src !== "string" || src === "") return null;
   const fit = (className ?? "")

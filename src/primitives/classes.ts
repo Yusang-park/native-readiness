@@ -85,22 +85,6 @@ export const nativeClassName = (className: string | undefined) =>
     })
     .join(' ');
 
-/**
- * Touch browsers show hover styles while an element is pressed. Pressables without their own
- * pressed (active:) styles get the same feedback on native.
- */
-export const pressClassName = (className: string | undefined) => {
-  const tokens = (className ?? '').split(/\s+/).filter(Boolean);
-  if (tokens.some((token) => variantsOf(token).includes('active'))) return tokens.join(' ');
-  const pressed = tokens
-    .filter((token) => variantsOf(token).includes('hover'))
-    .map((token) => {
-      const utility = utilityOf(token);
-      const variants = variantsOf(token).map((variant) => (variant === 'hover' ? 'active' : variant));
-      return `${variants.join(':')}:${utility}`;
-    });
-  return [...tokens, ...pressed].join(' ');
-};
 
 const GRID_ONLY = /^(grid|inline-grid|grid-cols-|grid-rows-|grid-flow-|auto-cols-|auto-rows-|col-|row-|gap-|gap$)/;
 
@@ -127,19 +111,48 @@ export const gridLayout = (className: string | undefined) => {
 const STATE_VARIANTS = new Set(['hover', 'active', 'focus', 'focus-within', 'disabled']);
 
 /**
- * NativeWind makes any element with a state variant touch-responsive to track that state, so
- * text inside a button would swallow the button's press. State variants never reach text: on a
- * pressable they become group-active (driven by the pressable, marked `group`), elsewhere they are
- * dropped.
+ * NativeWind makes any element with a state variant touch-responsive to track that state, so text
+ * inside a button would swallow the button's press. Plain text drops interaction states;
+ * pressables apply theirs through pressStates.
  */
-export const textStateClasses = (textClass: string, pressable: boolean) =>
+export const textStateClasses = (textClass: string) =>
   textClass
+    .split(/\s+/)
+    .filter((token) => token !== '' && !variantsOf(token).some((variant) => STATE_VARIANTS.has(variant)))
+    .join(' ');
+
+/**
+ * Resolves disabled: variants from the element's own disabled prop. Leaving them to NativeWind
+ * breaks its pressed (active:) styles when the element also has a transition.
+ */
+export const resolveDisabled = (className: string, disabled: boolean) =>
+  className
     .split(/\s+/)
     .filter(Boolean)
     .flatMap((token) => {
       const variants = variantsOf(token);
-      if (!variants.some((variant) => STATE_VARIANTS.has(variant))) return [token];
-      if (!pressable || variants.some((variant) => variant !== 'hover' && variant !== 'active')) return [];
-      return [`group-active:${utilityOf(token)}`];
+      if (!variants.includes('disabled')) return [token];
+      if (!disabled) return [];
+      const rest = variants.filter((variant) => variant !== 'disabled');
+      return [[...rest, utilityOf(token)].join(':')];
     })
     .join(' ');
+
+const PRESS_VARIANTS = new Set(['hover', 'active']);
+
+/**
+ * Resting and pressed class lists for a pressable. NativeWind's own active: styles do not resolve
+ * theme colors defined as CSS variables, so primitives track the pressed state themselves and
+ * switch between two plain class lists. Touch browsers show hover styles while pressing, so hover
+ * stands in when there are no active styles.
+ */
+export const pressStates = (className: string) => {
+  const tokens = className.split(/\s+/).filter(Boolean);
+  const hasState = (token: string, state: string) => variantsOf(token).includes(state);
+  const source = tokens.some((token) => hasState(token, 'active')) ? 'active' : 'hover';
+  const rest = tokens.filter((token) => !variantsOf(token).some((variant) => PRESS_VARIANTS.has(variant)));
+  const pressedTokens = tokens
+    .filter((token) => hasState(token, source))
+    .map((token) => [...variantsOf(token).filter((variant) => !PRESS_VARIANTS.has(variant)), utilityOf(token)].join(':'));
+  return { rest: rest.join(' '), pressed: twMerge(rest.join(' '), pressedTokens.join(' ')) };
+};

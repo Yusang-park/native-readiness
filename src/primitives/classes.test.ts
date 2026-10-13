@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridLayout, mergeTextClasses, nativeClassName, pressClassName, scrollDirection, splitTextClasses, textStateClasses } from './classes.js';
+import { gridLayout, mergeTextClasses, nativeClassName, scrollDirection, splitTextClasses, textStateClasses, resolveDisabled, pressStates } from './classes.js';
 
 describe('splitTextClasses', () => {
   it('separates text utilities from box utilities', () => {
@@ -106,28 +106,40 @@ describe('nativeClassName translations', () => {
   });
 });
 
-describe('pressClassName', () => {
-  it('shows hover styles while pressed when the element has no pressed styles', () => {
-    expect(pressClassName('bg-transparent hover:bg-gray-50 dark:hover:text-white')).toBe(
-      'bg-transparent hover:bg-gray-50 dark:hover:text-white active:bg-gray-50 dark:active:text-white',
-    );
-  });
-
-  it('keeps explicit pressed styles as they are', () => {
-    expect(pressClassName('hover:bg-gray-50 active:bg-gray-100')).toBe('hover:bg-gray-50 active:bg-gray-100');
-  });
-
-  it('leaves group and peer hover alone', () => {
-    expect(pressClassName('group-hover:underline')).toBe('group-hover:underline');
-  });
-});
 
 describe('textStateClasses', () => {
   it('drops interaction states from inherited text so plain text never captures touches', () => {
-    expect(textStateClasses('text-sm hover:text-foreground focus:underline', false)).toBe('text-sm');
+    expect(textStateClasses('text-sm hover:text-foreground focus:underline')).toBe('text-sm');
+  });
+});
+
+describe('resolveDisabled', () => {
+  it('applies disabled: utilities when the element is disabled', () => {
+    expect(resolveDisabled('bg-white disabled:opacity-40 md:disabled:bg-gray-100', true)).toBe('bg-white opacity-40 md:bg-gray-100');
   });
 
-  it('drives a pressable container\'s text states from the container when pressed', () => {
-    expect(textStateClasses('text-subtle hover:text-foreground active:underline', true)).toBe('text-subtle group-active:text-foreground group-active:underline');
+  it('drops disabled: utilities otherwise', () => {
+    expect(resolveDisabled('bg-white disabled:opacity-40 transition-colors', false)).toBe('bg-white transition-colors');
+  });
+});
+
+describe('pressStates', () => {
+  it('splits a pressable class list into resting and pressed lists', () => {
+    expect(pressStates('bg-transparent text-subtle hover:bg-background-50 hover:text-foreground px-3')).toEqual({
+      rest: 'bg-transparent text-subtle px-3',
+      pressed: 'px-3 bg-background-50 text-foreground',
+    });
+  });
+
+  it('prefers explicit active styles over hover styles', () => {
+    expect(pressStates('bg-white hover:bg-gray-50 active:bg-gray-100')).toEqual({ rest: 'bg-white', pressed: 'bg-gray-100' });
+  });
+
+  it('keeps responsive and dark variants on pressed utilities', () => {
+    expect(pressStates('bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900').pressed).toBe('bg-gray-50 dark:bg-gray-900');
+  });
+
+  it('leaves class lists without interaction states alone', () => {
+    expect(pressStates('bg-white px-2')).toEqual({ rest: 'bg-white px-2', pressed: 'bg-white px-2' });
   });
 });
