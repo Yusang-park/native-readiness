@@ -88,4 +88,19 @@ describe('withViteCompat', () => {
     expect(config.resolver?.resolveRequest?.(context, 'node:fs/promises', 'ios')).toEqual({ type: 'empty' });
     expect(config.resolver?.resolveRequest?.(context, 'node:path', 'web')).toEqual({ type: 'empty' });
   });
+
+  it('falls back to an empty module for bare Node built-ins only when they do not resolve', () => {
+    const config = withViteCompat({ projectRoot: appRoot }, { root: '..', pregenerate: false });
+    const missing = vi.fn(() => {
+      throw new Error('Unable to resolve');
+    });
+    const context = { originModulePath: '/repo/node_modules/vfile/index.js', resolveRequest: missing };
+    expect(config.resolver?.resolveRequest?.(context, 'path', 'ios')).toEqual({ type: 'empty' });
+    const installed = vi.fn(() => ({ type: 'sourceFile', filePath: '/repo/node_modules/events/events.js' }));
+    expect(config.resolver?.resolveRequest?.({ ...context, resolveRequest: installed }, 'events', 'ios')).toEqual({
+      type: 'sourceFile',
+      filePath: '/repo/node_modules/events/events.js',
+    });
+    expect(() => config.resolver?.resolveRequest?.(context, 'not-a-builtin', 'ios')).toThrow('Unable to resolve');
+  });
 });

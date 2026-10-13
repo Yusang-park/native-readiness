@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { viteDevMiddleware, type VitePluginLike } from './vite/plugins.js';
@@ -133,7 +134,15 @@ export const withViteCompat = <T extends MetroConfig>(config: T, options: ViteCo
         const fromWebCode = !path.resolve(context.originModulePath).startsWith(`${appRoot}${path.sep}`);
         if (platform !== 'web' && STYLESHEET.test(moduleName.split('?')[0] ?? moduleName) && fromWebCode) return { type: 'empty' };
         const resolution = resolveViteSpecifier(moduleName, context.originModulePath, resolveOptions);
-        if (resolution === null) return next(context, moduleName, platform);
+        if (resolution === null) {
+          if (!builtinModules.includes(moduleName)) return next(context, moduleName, platform);
+          // Bare Node built-ins resolve to an installed polyfill when there is one, otherwise empty.
+          try {
+            return next(context, moduleName, platform);
+          } catch {
+            return { type: 'empty' };
+          }
+        }
         if ('filePath' in resolution) return { type: 'sourceFile', filePath: resolution.filePath };
         const nextContext = resolution.originModulePath ? { ...context, originModulePath: resolution.originModulePath } : context;
         return next(nextContext, resolution.moduleName, platform);
