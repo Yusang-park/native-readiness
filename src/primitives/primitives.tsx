@@ -183,7 +183,9 @@ const Box = (props: WebProps) => {
   const style = nativeStyle(props.style);
   // A label on a plain container would make iOS treat the whole subtree as one element, hiding
   // its contents from accessibility; only interactive containers keep it.
-  const interactive = onClick !== undefined || props.role === 'button' || props.role === 'link' || props.role === 'img';
+  // As on the web, a clickable div is not a button unless its role says so; making it one would
+  // also hide any buttons inside it from accessibility.
+  const interactive = props.role === 'button' || props.role === 'link' || props.role === 'img';
   const { accessibilityLabel: _label, ...unlabelled } = accessibility(props);
   const shared = { ...(interactive ? accessibility(props) : unlabelled), ...(style ? { style } : {}) };
   const scroll = scrollDirection(className);
@@ -231,7 +233,8 @@ const Box = (props: WebProps) => {
         ref={nativeRef<View>(ref)}
         className={pressClassName(box)}
         onPress={() => onClick(webEvent())}
-        accessibilityRole="button"
+        accessible={interactive}
+        {...(interactive ? { accessibilityRole: props.role === 'link' ? ('link' as const) : ('button' as const) } : {})}
         {...shared}
       >
         {content}

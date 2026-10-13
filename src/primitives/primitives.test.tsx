@@ -120,9 +120,18 @@ describe('primitives', () => {
     expect(screen.getByText('Log In')).toBeTruthy();
   });
 
+  it('does not make clickable containers buttons unless their role says so', () => {
+    render(
+      <H.div onClick={() => undefined}>
+        <H.button>Inner action</H.button>
+      </H.div>,
+    );
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
   it('keeps labels on pressable containers', () => {
     render(
-      <H.div aria-label="Open sheet" onClick={() => undefined}>
+      <H.div aria-label="Open sheet" role="button" onClick={() => undefined}>
         card
       </H.div>,
     );
