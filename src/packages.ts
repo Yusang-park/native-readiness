@@ -28,6 +28,9 @@ export const DEFAULT_WEB_ONLY_PACKAGES = [
 export const NATIVE_SHIMS: Record<string, string> = {
   'framer-motion': 'framer-motion',
   'react-dom': 'react-dom',
+  'react-dom/client': 'react-dom-client',
+  'react-dom/server': 'react-dom-server',
+  sonner: 'sonner',
   '@radix-ui/react-popover': 'radix-popover',
   '@radix-ui/react-dialog': 'radix-dialog',
   '@radix-ui/react-tooltip': 'radix-tooltip',
