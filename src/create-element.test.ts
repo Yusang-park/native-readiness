@@ -26,6 +26,17 @@ describe('createElement babel plugin', () => {
     expect(babel).not.toContain('_react.default.createElement(');
   });
 
+  it('also rewrites NativeWind\'s createInteropElement, which its plugin may have produced first', () => {
+    const code = transform("var _ReactNativeCSSInterop = _interopRequireWildcard(require('react-native-css-interop'));\nexports.A = () => _ReactNativeCSSInterop.createInteropElement('div', null);", 'script');
+    expect(code).not.toContain('_ReactNativeCSSInterop.createInteropElement(');
+    expect(code).toContain('native-readiness/jsx-runtime');
+  });
+
+  it('rewrites createInteropElement imported as an ES namespace', () => {
+    const code = transform("import * as _ReactNativeCSSInterop from 'react-native-css-interop';\nexport const A = () => _ReactNativeCSSInterop.createInteropElement('div', null);");
+    expect(code).not.toContain('_ReactNativeCSSInterop.createInteropElement(');
+  });
+
   it('leaves createElement from other modules alone', () => {
     const code = transform("import { createElement } from 'other';\nexport const A = () => createElement('div');");
     expect(code).not.toContain('native-readiness');

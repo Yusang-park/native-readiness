@@ -9,10 +9,25 @@ type Babel = { types: typeof BabelTypes };
 const SOURCE = 'native-readiness/jsx-runtime';
 
 export default function createElementBabel({ types: t }: Babel): PluginObject<PluginPass & { replacement?: BabelTypes.Identifier }> {
-  const isReactRequire = (node: BabelTypes.Node | null | undefined): boolean =>
+  const isRequireOf = (node: BabelTypes.Node | null | undefined, source: string): boolean =>
     t.isCallExpression(node) &&
-    ((t.isIdentifier(node.callee, { name: 'require' }) && t.isStringLiteral(node.arguments[0], { value: 'react' })) ||
-      node.arguments.some((argument) => isReactRequire(argument)));
+    ((t.isIdentifier(node.callee, { name: 'require' }) && t.isStringLiteral(node.arguments[0], { value: source })) ||
+      node.arguments.some((argument) => isRequireOf(argument, source)));
+  const isReactRequire = (node: BabelTypes.Node | null | undefined) => isRequireOf(node, 'react');
+
+  // NativeWind's own Babel plugin may already have turned createElement into this.
+  const isInteropCreate = (path: NodePath, callee: BabelTypes.Node) => {
+    if (!t.isMemberExpression(callee) || !t.isIdentifier(callee.property, { name: 'createInteropElement' }) || !t.isIdentifier(callee.object)) {
+      return false;
+    }
+    const declaration = path.scope.getBinding(callee.object.name)?.path;
+    if (!declaration) return false;
+    if (declaration.isImportNamespaceSpecifier() || declaration.isImportDefaultSpecifier()) {
+      const parent = declaration.parentPath;
+      return parent?.isImportDeclaration() === true && parent.node.source.value === 'react-native-css-interop';
+    }
+    return declaration.isVariableDeclarator() && isRequireOf(declaration.node.init, 'react-native-css-interop');
+  };
 
   const isReactBinding = (path: NodePath, name: string) => {
     const binding = path.scope.getBinding(name);
@@ -55,7 +70,7 @@ export default function createElementBabel({ types: t }: Babel): PluginObject<Pl
     name: 'native-readiness-create-element',
     visitor: {
       CallExpression(path, state) {
-        if (!isCreateElement(path, path.node.callee)) return;
+        if (!isCreateElement(path, path.node.callee) && !isInteropCreate(path, path.node.callee)) return;
         state.replacement ??= addNamed(path, 'createElement', SOURCE, { nameHint: 'nativeCreateElement' });
         path.node.callee = t.cloneNode(state.replacement);
       },
