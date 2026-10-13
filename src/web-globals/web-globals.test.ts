@@ -141,6 +141,33 @@ describe('installWebGlobals', () => {
     expect(() => document.addEventListener('visibilitychange', () => undefined)).not.toThrow();
   });
 
+  it('supports the common document query methods', async () => {
+    const { target } = await setup();
+    const document = target.document as Document;
+    expect(Array.from(document.getElementsByClassName('x'))).toEqual([]);
+    expect(Array.from(document.getElementsByName('x'))).toEqual([]);
+    expect(document.activeElement).toBeNull();
+    expect(document.createTextNode('a')).toBeTruthy();
+  });
+
+  it('provides event, element and observer constructors for instanceof checks and new', async () => {
+    const { target } = await setup();
+    for (const name of ['Event', 'CustomEvent', 'MouseEvent', 'KeyboardEvent', 'FocusEvent', 'PointerEvent']) {
+      const EventClass = target[name] as new (type: string) => { type: string };
+      expect(new EventClass('click').type).toBe('click');
+    }
+    for (const name of ['Node', 'Element', 'HTMLElement', 'HTMLInputElement', 'SVGElement']) {
+      expect(typeof target[name]).toBe('function');
+      expect({} instanceof (target[name] as new () => unknown)).toBe(false);
+    }
+    for (const name of ['MutationObserver', 'ResizeObserver', 'IntersectionObserver']) {
+      const Observer = target[name] as new (callback: () => void) => { observe: () => void; disconnect: () => void };
+      const observer = new Observer(() => undefined);
+      expect(() => observer.observe()).not.toThrow();
+      expect(() => observer.disconnect()).not.toThrow();
+    }
+  });
+
   it('fills in navigator.language', async () => {
     const { target } = await setup({ locale: 'ko-KR' });
     expect((target.navigator as Navigator).language).toBe('ko-KR');

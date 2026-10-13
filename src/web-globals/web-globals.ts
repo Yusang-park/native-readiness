@@ -149,6 +149,65 @@ class ElementShim {
   querySelectorAll = () => [];
 }
 
+class EventShim {
+  defaultPrevented = false;
+  constructor(
+    readonly type: string,
+    readonly init: Record<string, unknown> = {},
+  ) {}
+
+  get detail() {
+    return this.init.detail;
+  }
+
+  preventDefault() {
+    this.defaultPrevented = true;
+  }
+
+  stopPropagation() {}
+
+  stopImmediatePropagation() {}
+}
+
+class ObserverShim {
+  constructor(_callback: unknown) {}
+
+  observe() {}
+
+  unobserve() {}
+
+  disconnect() {}
+
+  takeRecords() {
+    return [];
+  }
+}
+
+// Classes web code checks with instanceof or constructs; nothing on native is an instance of them.
+class NodeShim {}
+
+const GLOBAL_CLASSES: Record<string, unknown> = {
+  Event: EventShim,
+  CustomEvent: EventShim,
+  MouseEvent: EventShim,
+  KeyboardEvent: EventShim,
+  FocusEvent: EventShim,
+  PointerEvent: EventShim,
+  TouchEvent: EventShim,
+  InputEvent: EventShim,
+  Node: NodeShim,
+  Element: class extends NodeShim {},
+  HTMLElement: class extends NodeShim {},
+  HTMLInputElement: class extends NodeShim {},
+  HTMLTextAreaElement: class extends NodeShim {},
+  HTMLAnchorElement: class extends NodeShim {},
+  HTMLImageElement: class extends NodeShim {},
+  SVGElement: class extends NodeShim {},
+  MutationObserver: ObserverShim,
+  ResizeObserver: ObserverShim,
+  IntersectionObserver: ObserverShim,
+};
+
 const createDocument = () => ({
   title: '',
   cookie: '',
@@ -157,8 +216,15 @@ const createDocument = () => ({
   documentElement: new ElementShim(),
   body: new ElementShim(),
   head: new ElementShim(),
+  activeElement: null,
   getElementById: () => null,
   getElementsByTagName: () => [],
+  getElementsByClassName: () => [],
+  getElementsByName: () => [],
+  createTextNode: (text: string) => ({ textContent: text }),
+  createEvent: (type: string) => new EventShim(type),
+  elementFromPoint: () => null,
+  contains: () => false,
   querySelector: () => null,
   querySelectorAll: () => [],
   createElement: () => new ElementShim(),
@@ -270,6 +336,7 @@ export const installWebGlobals = async (options: WebGlobalsOptions) => {
   });
 
   define(target, 'document', createDocument());
+  for (const [name, value] of Object.entries(GLOBAL_CLASSES)) define(target, name, value);
   define(target, 'addEventListener', noop);
   define(target, 'removeEventListener', noop);
   define(target, 'scrollTo', noop);
