@@ -82,3 +82,4 @@ export default function createElementBabel({ types: t }: Babel): PluginObject<Pl
     },
   };
 }
+export { domRenderingPackages, isDomRenderingModule } from './dom-packages.js';
